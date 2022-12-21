@@ -1,10 +1,10 @@
-==============================
-simple_python_package_template
-==============================
+=====
+beorn
+=====
 
-This is a simple python package template that can be forked and used.
+Bubbles during Epoch Of Reionization Numerical-simulator (BEORN).
 
 Package details
 ===============
 
-The package provides basic structure of a python package that can be used as a starting point to build your own.
+The package can be used to simulate the state of the intergalactic medium (IGM) during cosmic dawn and reionization.

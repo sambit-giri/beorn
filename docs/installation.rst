@@ -8,16 +8,16 @@ The dependencies should be installed automatically during the installation proce
 
 For a standard non-editable installation use::
 
-    pip install git+https://github.com/sambit-giri/simple_python_package_template.git [--user]
+    pip install git+https://github.com/sambit-giri/beorn.git [--user]
 
 The --user is optional and only required if you don't have write permission to your main python installation.
-If you wants to work on the code, you can download it directly from the `GitHub <https://github.com/sambit-giri/simple_python_package_template>`_ page or clone the project using::
+If you wants to work on the code, you can download it directly from the `GitHub <https://github.com/sambit-giri/beorn>`_ page or clone the project using::
 
-    git clone git://github.com/sambit-giri/simple_python_package_template.git
+    git clone git://github.com/sambit-giri/beorn.git
 
 Then, you can just install in place without copying anything using::
 
-    pip install -e /path/to/simple_python_package_template [--user]
+    pip install -e /path/to/beorn [--user]
 
 The package can also be installed using the *setup.py* script. Find the file *setup.py* in the root directory. To install in the standard directory, run::
 
