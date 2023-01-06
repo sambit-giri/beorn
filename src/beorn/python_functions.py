@@ -1,4 +1,4 @@
-plot_FAST_RT_PS_of_zplot_FAST_RT_PS_of_z"""
+"""
 Bunch of python functions useful to plot, load, read in...
 """
 import numpy as np
