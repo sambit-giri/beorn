@@ -861,5 +861,5 @@ def RSD_field(param,density_field,zz):
     dv_dr_k_over_H[np.where(np.isnan(dv_dr_k_over_H))] = np.interp(aa, scale_factor, dD_da) * delta_k[np.where(np.isnan(dv_dr_k_over_H))] / D(aa,param) * aa * aa   ## to deal with nan value for k=0
 
     dv_dr_over_H = np.real(scipy.fft.ifftn(dv_dr_k_over_H))  #### THIS IS dv_dr/H
-    dv_dr_over_H.clip(min=-0.7) ### see 0911.2219.pdf, after eq 7. They impose a condition dv_dr>-0.7H to avoid singularities
+    dv_dr_over_H = dv_dr_over_H.clip(min=-0.7) ### see 0911.2219.pdf, after eq 7. They impose a condition dv_dr>-0.7H to avoid singularities
     return dv_dr_over_H + 1
