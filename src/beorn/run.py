@@ -486,7 +486,7 @@ def saturated_Tspin(param):
     else:
         print('param.sim.mpi4py should be yes or no')
 
-    zz = []
+    zz,xHII,dTb = [],[],[]
     print('Looping over redshifts....')
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         if rank == ii % size:
