@@ -476,60 +476,39 @@ def saturated_Tspin(param):
     PS_rho = np.zeros((nbr_snap, len(kbins) - 1))
     PS_dTb = np.zeros((nbr_snap, len(kbins) - 1))
 
-    if param.sim.mpi4py == 'yes':
-        import mpi4py.MPI
-        rank = mpi4py.MPI.COMM_WORLD.Get_rank()
-        size = mpi4py.MPI.COMM_WORLD.Get_size()
-    elif param.sim.mpi4py == 'no':
-        rank = 0
-        size = 1
-    else:
-        print('param.sim.mpi4py should be yes or no')
-
-    zz,xHII,dTb = [],[],[]
-
+    zz, xHII, dTb = [], [], []
     print('Looping over redshifts....')
     for ii, filename in enumerate(os.listdir(catalog_dir)):
-        if rank == ii % size:
-            print('Core nbr', rank, 'is taking care of snap', filename[4:-5])
+        zz_ = load_f(catalog_dir + filename)['z']
+        dens_field = param.sim.dens_field
+        if dens_field is not None:
+            delta_b = load_delta_b(param, filename)
+        else:
+            delta_b = 0
+        zz.append(zz_)
+        Grid_xHII = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_dTb = factor * np.sqrt(1 + zz_) * (1 - Grid_xHII) * (delta_b + 1)
 
-            zz_ = load_f(catalog_dir + filename)['z']
-            dens_field = param.sim.dens_field
-            if dens_field is not None:
-                delta_b = load_delta_b(param,filename)
-            else :
-                delta_b = 0
-            zz.append(zz_)
-            Grid_xHII = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],'rb'))
-            Grid_dTb = factor * np.sqrt(1 + zz_) * (1-Grid_xHII) * (delta_b + 1)
+        if Grid_xHII.size == 1:
+            Grid_xHII = np.full((nGrid, nGrid, nGrid), 0)  ## to avoid div by zero
+        if Grid_dTb.size == 1:
+            Grid_dTb = np.full((nGrid, nGrid, nGrid), 1)
 
+        #  delta_XHII = Grid_xHII / np.mean(Grid_xHII) - 1
+        #  delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
+        xHII.append(np.mean(Grid_xHII))
+        dTb.append(np.mean(Grid_dTb))
+        #   PS_rho[ii] = t2c.power_spectrum.power_spectrum_1d(delta_b, box_dims=Lbox, kbins=kbins)[0]
 
-            if Grid_xHII.size == 1:
-                Grid_xHII = np.full((nGrid, nGrid, nGrid), 0)  ## to avoid div by zero
-            if Grid_dTb.size == 1:
-                Grid_dTb = np.full((nGrid, nGrid, nGrid), 1)
+        # PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
+        #  PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
 
-          #  delta_XHII = Grid_xHII / np.mean(Grid_xHII) - 1
-          #  delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
-            xHII.append(np.mean(Grid_xHII))
-            dTb.append(np.mean(Grid_dTb))
-         #   PS_rho[ii] = t2c.power_spectrum.power_spectrum_1d(delta_b, box_dims=Lbox, kbins=kbins)[0]
+    z_arr, xHII, dTb = np.array(zz_), np.array(xHII), np.array(dTb)
+    Dict = {'z': z_arr, 'k': kbins, 'dTb': dTb, 'xHII': xHII, 'PS_xHII': PS_xHII, 'PS_dTb': PS_dTb,'PS_rho': PS_rho}
+    end_time = datetime.datetime.now()
 
-           # PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
-          #  PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
-
-            z_arr,xHII,dTb = np.array(zz_),np.array(xHII),np.array(dTb)
-            Dict = {'z': z_arr, 'k': kbins,'dTb':dTb, 'xHII':xHII,'PS_xHII': PS_xHII, 'PS_dTb': PS_dTb,'PS_rho': PS_rho}
-            end_time = datetime.datetime.now()
-
-            print('Computing the power spectra under the assumption Tspin >> Tgamma took : ', start_time - end_time)
-            pickle.dump(file=open('./physics/PS_Tsaturated' + str(nGrid) + 'MAR_' + model_name + 'core_' + str(rank) + '.pkl', 'wb'),obj=Dict)
-
-
-
-
-
-
+    print('Computing the power spectra under the assumption Tspin >> Tgamma took : ', start_time - end_time)
+    pickle.dump( file=open('./physics/PS_Tsaturated' + str(nGrid) + 'MAR_' + model_name + '.pkl', 'wb'), obj=Dict)
 
 
 def compute_GS(param,string='',RSD = False,global_approx = False):
