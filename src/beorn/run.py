@@ -472,8 +472,8 @@ def saturated_Tspin(param):
     for filename in os.listdir(catalog_dir):  # count the number of snapshots
         nbr_snap+=1
 
-    PS_xHII = np.zeros((nbr_snap, len(kbins) - 1))
-    PS_rho = np.zeros((nbr_snap, len(kbins) - 1))
+    #PS_xHII = np.zeros((nbr_snap, len(kbins) - 1))
+    #PS_rho = np.zeros((nbr_snap, len(kbins) - 1))
     PS_dTb = np.zeros((nbr_snap, len(kbins) - 1))
 
     zz, xHII, dTb = [], [], []
@@ -495,16 +495,15 @@ def saturated_Tspin(param):
             Grid_dTb = np.full((nGrid, nGrid, nGrid), 1)
 
         #  delta_XHII = Grid_xHII / np.mean(Grid_xHII) - 1
-        #  delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
+        delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
         xHII.append(np.mean(Grid_xHII))
         dTb.append(np.mean(Grid_dTb))
-        #   PS_rho[ii] = t2c.power_spectrum.power_spectrum_1d(delta_b, box_dims=Lbox, kbins=kbins)[0]
-
-        # PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
-        #  PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
+        #PS_rho[ii] = t2c.power_spectrum.power_spectrum_1d(delta_b, box_dims=Lbox, kbins=kbins)[0]
+        #PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
+        PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
 
     z_arr, xHII, dTb = np.array(zz), np.array(xHII), np.array(dTb)
-    Dict = {'z': z_arr, 'k': kbins, 'dTb': dTb, 'xHII': xHII, 'PS_xHII': PS_xHII, 'PS_dTb': PS_dTb,'PS_rho': PS_rho}
+    Dict = {'z': z_arr, 'k': kbins, 'dTb': dTb, 'xHII': xHII, 'PS_dTb': PS_dTb}    # 'PS_xHII': PS_xHII,  ,'PS_rho': PS_rho
     end_time = datetime.datetime.now()
 
     print('Computing the power spectra under the assumption Tspin >> Tgamma took : ', start_time - end_time)
