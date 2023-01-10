@@ -447,6 +447,94 @@ def grid_dTb(param):
         pickle.dump(file=open('./grid_output/xcoll_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xcoll)
 
 
+def saturated_Tspin(param):
+    """
+    Computes the power spectrum and GS under the assumption that Tspin>>Tgamma (saturated).
+    """
+    start_time = datetime.datetime.now()
+    import tools21cm as t2c
+    catalog_dir = param.sim.halo_catalogs
+    model_name = param.sim.model_name
+    nGrid = param.sim.Ncell
+    Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
+    factor = 27 * Ob * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)  # factor used in dTb calculation
+
+    Lbox = param.sim.Lbox  # Mpc/h
+    if isinstance(param.sim.kbin, int):
+        kbins = np.logspace(np.log10(param.sim.kmin), np.log10(param.sim.kmax), param.sim.kbin, base=10)  # h/Mpc
+    elif isinstance(param.sim.kbin, str):
+        kbins = np.loadtxt(param.sim.kbin)
+    else:
+        print( 'param.sim.kbin should be either a path to a text files containing kbins edges values or it should be an int.')
+
+    z_arr = []
+    for filename in os.listdir(catalog_dir):  # count the number of snapshots
+        zz_ = load_f(catalog_dir + filename)['z']
+        z_arr.append(zz_)
+
+    z_arr = np.sort(z_arr)
+    nbr_snap = len(z_arr)
+
+    PS_xHII = np.zeros((nbr_snap, len(kbins) - 1))
+    PS_rho = np.zeros((nbr_snap, len(kbins) - 1))
+    PS_dTb = np.zeros((nbr_snap, len(kbins) - 1))
+    dTb = np.zeros((nbr_snap))
+    xHII = np.zeros((nbr_snap))
+    if param.sim.mpi4py == 'yes':
+        import mpi4py.MPI
+        rank = mpi4py.MPI.COMM_WORLD.Get_rank()
+        size = mpi4py.MPI.COMM_WORLD.Get_size()
+    elif param.sim.mpi4py == 'no':
+        rank = 0
+        size = 1
+    else:
+        print('param.sim.mpi4py should be yes or no')
+
+
+    for ii, filename in enumerate(os.listdir(catalog_dir)):
+        if rank == ii % size:
+            print('Core nbr', rank, 'is taking care of snap', filename[4:-5])
+
+            zz_ = load_f(catalog_dir + filename)['z']
+            dens_field = param.sim.dens_field
+            if dens_field is not None:
+                delta_b = load_delta_b(param,filename)
+            else :
+                delta_b = 0
+
+            Grid_xHII = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],'rb'))
+            Grid_dTb = factor * np.sqrt(1 + zz_) * Grid_xHI * (delta_b + 1)
+            dTb[ii] = np.mean(Grid_dTb)
+            xHII[ii] = np.mean(Grid_xHII)
+
+            if Grid_xHII.size == 1:
+                Grid_xHII = np.full((nGrid, nGrid, nGrid), 0)  ## to avoid div by zero
+            if Grid_dTb.size == 1:
+                Grid_dTb = np.full((nGrid, nGrid, nGrid), 1)
+
+            delta_XHII = Grid_xHII / np.mean(Grid_xHII) - 1
+            delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
+
+            ii = np.where(z_arr == zz_)
+
+            PS_rho[ii] = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=Lbox, kbins=kbins)[0]
+
+            z_arr[ii] = zz_
+            PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
+            PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
+
+            Dict = {'z': z_arr, 'k': k_bins,'dTb':dTb, 'xHII':xHII, 'PS_xHII': PS_xHII, 'PS_dTb': PS_dTb,'PS_rho': PS_rho}
+            end_time = datetime.datetime.now()
+
+            print('Computing the power spectra under the assumption Tspin >> Tgamma took : ', start_time - end_time)
+            pickle.dump(file=open('./physics/PS_Tsaturated' + str(nGrid) + 'MAR_' + model_name + 'core_' + str(rank) + '.pkl', 'wb'),obj=Dict)
+
+
+
+
+
+
+
 
 def compute_GS(param,string='',RSD = False,global_approx = False):
     """
@@ -700,13 +788,17 @@ def compute_PS(param,Tspin = False,RSD = False):
             pickle.dump(file=open('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + 'core_'+str(rank)+'.pkl', 'wb'), obj=Dict)
 
 
-def concatenate_PS(param):
+def concatenate_PS(param,Tspinsat = ''):
+    """
+    Write Tspinsat = 'Tsaturated' if you want to concatenate the power spectra under Tspin saturated assumption
+    """
     model_name = param.sim.model_name
     nGrid = param.sim.Ncell
-    Dict0 = pickle.load(file=open('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + 'core_' + str(0) + '.pkl', 'rb'))
+    Dict0 = pickle.load(file=open('./physics/PS_'+Tspinsat+ + str(nGrid) + 'MAR_' + model_name + 'core_' + str(0) + '.pkl', 'rb'))
 
     for i in range(1,param.sim.cores):
-        Dict = pickle.load(open('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + 'core_' + str(i) + '.pkl', 'rb'))
+
+        Dict = pickle.load(open('./physics/PS_'+Tspinsat+ + str(nGrid) + 'MAR_' + model_name + 'core_' + str(i) + '.pkl', 'rb'))
         for keys in Dict.keys():
             if keys != 'z' and keys != 'k':
                 Dict0[keys][np.where(Dict[keys]!=0)] = Dict[keys][np.where(Dict[keys]!=0)]
