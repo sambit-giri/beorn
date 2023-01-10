@@ -451,6 +451,7 @@ def saturated_Tspin(param):
     """
     Computes the power spectrum and GS under the assumption that Tspin>>Tgamma (saturated).
     """
+    print('Computing GS and PS under the assumption Tspin >> Tgamma')
     start_time = datetime.datetime.now()
     import tools21cm as t2c
     catalog_dir = param.sim.halo_catalogs
@@ -490,7 +491,7 @@ def saturated_Tspin(param):
     else:
         print('param.sim.mpi4py should be yes or no')
 
-
+    print('Looping over redshifts....')
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         if rank == ii % size:
             print('Core nbr', rank, 'is taking care of snap', filename[4:-5])
@@ -503,7 +504,7 @@ def saturated_Tspin(param):
                 delta_b = 0
 
             Grid_xHII = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],'rb'))
-            Grid_dTb = factor * np.sqrt(1 + zz_) * Grid_xHI * (delta_b + 1)
+            Grid_dTb = factor * np.sqrt(1 + zz_) * (1-Grid_xHII) * (delta_b + 1)
             dTb[ii] = np.mean(Grid_dTb)
             xHII[ii] = np.mean(Grid_xHII)
 
