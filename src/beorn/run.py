@@ -487,6 +487,7 @@ def saturated_Tspin(param):
         print('param.sim.mpi4py should be yes or no')
 
     zz,xHII,dTb = [],[],[]
+
     print('Looping over redshifts....')
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         if rank == ii % size:
@@ -518,7 +519,7 @@ def saturated_Tspin(param):
           #  PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
 
             z_arr,xHII,dTb = np.array(zz_),np.array(xHII),np.array(dTb)
-            Dict = {'z': z_arr, 'k': k_bins,'dTb':dTb, 'xHII':xHII,'PS_xHII': PS_xHII, 'PS_dTb': PS_dTb,'PS_rho': PS_rho}
+            Dict = {'z': z_arr, 'k': kbins,'dTb':dTb, 'xHII':xHII,'PS_xHII': PS_xHII, 'PS_dTb': PS_dTb,'PS_rho': PS_rho}
             end_time = datetime.datetime.now()
 
             print('Computing the power spectra under the assumption Tspin >> Tgamma took : ', start_time - end_time)
