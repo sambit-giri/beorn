@@ -795,11 +795,11 @@ def concatenate_PS(param,Tspinsat = ''):
     """
     model_name = param.sim.model_name
     nGrid = param.sim.Ncell
-    Dict0 = pickle.load(file=open('./physics/PS_'+Tspinsat+ + str(nGrid) + 'MAR_' + model_name + 'core_' + str(0) + '.pkl', 'rb'))
+    Dict0 = pickle.load(file=open('./physics/PS_'+Tspinsat+  str(nGrid) + 'MAR_' + model_name + 'core_' + str(0) + '.pkl', 'rb'))
 
     for i in range(1,param.sim.cores):
 
-        Dict = pickle.load(open('./physics/PS_'+Tspinsat+ + str(nGrid) + 'MAR_' + model_name + 'core_' + str(i) + '.pkl', 'rb'))
+        Dict = pickle.load(open('./physics/PS_'+Tspinsat+  str(nGrid) + 'MAR_' + model_name + 'core_' + str(i) + '.pkl', 'rb'))
         for keys in Dict.keys():
             if keys != 'z' and keys != 'k':
                 Dict0[keys][np.where(Dict[keys]!=0)] = Dict[keys][np.where(Dict[keys]!=0)]
