@@ -805,7 +805,7 @@ def concatenate_PS(param,Tspinsat = ''):
                 Dict0[keys][np.where(Dict[keys]!=0)] = Dict[keys][np.where(Dict[keys]!=0)]
         #os.remove('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + 'core_' + str(i) + '.pkl')
 
-    pickle.dump(file=open('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + '.pkl', 'wb'),obj=Dict0)
+    pickle.dump(file=open('./physics/PS_' +Tspinsat+  str(nGrid) + 'MAR_' + model_name + '.pkl', 'wb'),obj=Dict0)
 
 
 
