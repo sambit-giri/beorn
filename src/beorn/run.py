@@ -518,7 +518,7 @@ def saturated_Tspin(param):
 
             ii = np.where(z_arr == zz_)
 
-            PS_rho[ii] = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=Lbox, kbins=kbins)[0]
+            PS_rho[ii] = t2c.power_spectrum.power_spectrum_1d(delta_b, box_dims=Lbox, kbins=kbins)[0]
 
             z_arr[ii] = zz_
             PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
