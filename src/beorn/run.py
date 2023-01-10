@@ -500,10 +500,10 @@ def saturated_Tspin(param):
         dTb.append(np.mean(Grid_dTb))
         #PS_rho[ii] = t2c.power_spectrum.power_spectrum_1d(delta_b, box_dims=Lbox, kbins=kbins)[0]
         #PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
-        PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
+        PS_dTb[ii],k_bins = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
 
     z_arr, xHII, dTb = np.array(zz), np.array(xHII), np.array(dTb)
-    Dict = {'z': z_arr, 'k': kbins, 'dTb': dTb, 'xHII': xHII, 'PS_dTb': PS_dTb}    # 'PS_xHII': PS_xHII,  ,'PS_rho': PS_rho
+    Dict = {'z': z_arr, 'k': k_bins, 'dTb': dTb, 'xHII': xHII, 'PS_dTb': PS_dTb}    # 'PS_xHII': PS_xHII,  ,'PS_rho': PS_rho
     end_time = datetime.datetime.now()
 
     print('Computing the power spectra under the assumption Tspin >> Tgamma took : ', start_time - end_time)
