@@ -468,19 +468,14 @@ def saturated_Tspin(param):
     else:
         print( 'param.sim.kbin should be either a path to a text files containing kbins edges values or it should be an int.')
 
-    z_arr = []
+    nbr_snap = 0
     for filename in os.listdir(catalog_dir):  # count the number of snapshots
-        zz_ = load_f(catalog_dir + filename)['z']
-        z_arr.append(zz_)
-
-    z_arr = np.sort(z_arr)
-    nbr_snap = len(z_arr)
+        nbr_snap+=1
 
     PS_xHII = np.zeros((nbr_snap, len(kbins) - 1))
     PS_rho = np.zeros((nbr_snap, len(kbins) - 1))
     PS_dTb = np.zeros((nbr_snap, len(kbins) - 1))
-    dTb = np.zeros((nbr_snap))
-    xHII = np.zeros((nbr_snap))
+
     if param.sim.mpi4py == 'yes':
         import mpi4py.MPI
         rank = mpi4py.MPI.COMM_WORLD.Get_rank()
@@ -491,6 +486,7 @@ def saturated_Tspin(param):
     else:
         print('param.sim.mpi4py should be yes or no')
 
+    zz = []
     print('Looping over redshifts....')
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         if rank == ii % size:
@@ -502,29 +498,27 @@ def saturated_Tspin(param):
                 delta_b = load_delta_b(param,filename)
             else :
                 delta_b = 0
-
+            zz.append(zz_)
             Grid_xHII = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],'rb'))
             Grid_dTb = factor * np.sqrt(1 + zz_) * (1-Grid_xHII) * (delta_b + 1)
-            dTb[ii] = np.mean(Grid_dTb)
-            xHII[ii] = np.mean(Grid_xHII)
+
 
             if Grid_xHII.size == 1:
                 Grid_xHII = np.full((nGrid, nGrid, nGrid), 0)  ## to avoid div by zero
             if Grid_dTb.size == 1:
                 Grid_dTb = np.full((nGrid, nGrid, nGrid), 1)
 
-            delta_XHII = Grid_xHII / np.mean(Grid_xHII) - 1
-            delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
+          #  delta_XHII = Grid_xHII / np.mean(Grid_xHII) - 1
+          #  delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
+            xHII.append(np.mean(Grid_xHII))
+            dTb.append(np.mean(Grid_dTb))
+         #   PS_rho[ii] = t2c.power_spectrum.power_spectrum_1d(delta_b, box_dims=Lbox, kbins=kbins)[0]
 
-            ii = np.where(z_arr == zz_)
+           # PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
+          #  PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
 
-            PS_rho[ii] = t2c.power_spectrum.power_spectrum_1d(delta_b, box_dims=Lbox, kbins=kbins)[0]
-
-            z_arr[ii] = zz_
-            PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
-            PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
-
-            Dict = {'z': z_arr, 'k': k_bins,'dTb':dTb, 'xHII':xHII, 'PS_xHII': PS_xHII, 'PS_dTb': PS_dTb,'PS_rho': PS_rho}
+            z_arr,xHII,dTb = np.array(zz_),np.array(xHII),np.array(dTb)
+            Dict = {'z': z_arr, 'k': k_bins,'dTb':dTb, 'xHII':xHII,'PS_xHII': PS_xHII, 'PS_dTb': PS_dTb,'PS_rho': PS_rho}
             end_time = datetime.datetime.now()
 
             print('Computing the power spectra under the assumption Tspin >> Tgamma took : ', start_time - end_time)
@@ -804,6 +798,7 @@ def concatenate_PS(param,Tspinsat = ''):
             if keys != 'z' and keys != 'k':
                 Dict0[keys][np.where(Dict[keys]!=0)] = Dict[keys][np.where(Dict[keys]!=0)]
         #os.remove('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + 'core_' + str(i) + '.pkl')
+
 
     pickle.dump(file=open('./physics/PS_' +Tspinsat+  str(nGrid) + 'MAR_' + model_name + '.pkl', 'wb'),obj=Dict0)
 
