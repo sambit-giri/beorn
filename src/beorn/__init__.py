@@ -6,5 +6,5 @@ from .global_qty import xHII_approx #, tau_CMB
 from .python_functions import *
 from .simple_model_faster import simple_solver_faster
 
-
+from .excursion_set import run_excursion_set
 #from .run_Ross19 import  *

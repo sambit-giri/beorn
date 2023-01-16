@@ -122,6 +122,24 @@ def cosmo_par():
     return Bunch(par)
 
 
+
+def excursion_set_par():
+    par = {
+        ### HMF parameters that we use to normalise the collapsed fraction.
+        "filter": 'tophat',           # tophat, sharpk or smoothk
+        "c": 1,                       # scale to halo mass relation (1 for tophat, 2.5 for sharp-k, 3 for smooth-k)
+        "q" : 0.707,                  # q for f(nu) [0.707,1,1] for [ST,smoothk or sharpk,PS]
+        "p" : 0.3,                    # p for f(nu) [0.3,0.3,0] for [ST,smoothk or sharpk,PS]
+        "delta_c" : 1.686,            # critical density
+        "A" : 0.322,                  # A = 0.322 except 0.5 for PS Spherical collapse (to double check)
+        "R_max": 40,                 # Mpc/h. The scale at which we start the excursion set.
+        "n_rec": 1.5,                # mean number of recombination per baryon.
+        "stepping":1,                # When doing the exc set, we smooth the field starting from large scale down to the pixel size. This parameters controls how fast you decrease the smoothing scale, in pixel units.
+     }
+    return Bunch(par)
+
+
+
 def table_par():
     par = {
         "import_table": False,              # Whether or not to import an external Gamma table
@@ -137,5 +155,6 @@ def par():
         "solver": solver_par(),
         "cosmo" : cosmo_par(),
         "sim" : sim_par(),
+        "exc_set" : excursion_set_par(),
         })
     return par

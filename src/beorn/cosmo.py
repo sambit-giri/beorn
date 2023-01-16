@@ -60,7 +60,7 @@ def read_powerspectrum(param):
     Linear power spectrum from file
     """
     names='k, P'
-    PS = np.genfromtxt(param.file.ps,usecols=(0,1),comments='#',dtype=None, names=names)
+    PS = np.genfromtxt(param.cosmo.ps,usecols=(0,1),comments='#',dtype=None, names=names)
     return PS
 
 
