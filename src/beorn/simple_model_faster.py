@@ -12,7 +12,7 @@ from scipy.optimize import fsolve
 from astropy import units as u
 #from astropy.cosmology import WMAP7 as pl
 from astropy.cosmology import FlatLambdaCDM
-from radtrans.cross_sections import alpha_HII
+from .cross_sections import alpha_HII
 from .massaccretion import mass_accretion_EPS
 
 

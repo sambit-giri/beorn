@@ -7,7 +7,7 @@ import sys
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
-from radtrans.constants import *
+from .constants import *
 
 
 def load_f(file):
