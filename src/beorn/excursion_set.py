@@ -8,7 +8,7 @@ from .python_functions import *
 from .constants import * ; from.cosmo import *
 from astropy.convolution import convolve_fft
 import dmcosmo as dm ## This is the HMF package. Can be dl here : https://github.com/timotheeschaeffer/dmcosmo.git
-from .run import load_delta_b
+from .run_simple_faster import load_delta_b
 import datetime
 from os.path import exists
 from .astro import f_esc, f_star_Halo
