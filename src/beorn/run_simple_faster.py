@@ -362,11 +362,12 @@ def grid_dTb(param):
 
 
 
-def compute_GS(param,string='',RSD = False,global_approx = False):
+def compute_GS(param,string='',RSD = False,global_approx = False,ion = None):
     """
     Reads in the grids and compute the global quantities averaged.
     If RSD is True, will add RSD calculation
     If lyal_from_sfrd is True, we will compute xalpha from the sfrd (see eq 19. and 23. from HM paper 2011.12308) and then correct dTb to match this xalpha.
+    If ion = exc_set, will read in the xHII maps produce from the excursion set formalism.
     """
     catalog_dir = param.sim.halo_catalogs
     model_name = param.sim.model_name
@@ -395,7 +396,10 @@ def compute_GS(param,string='',RSD = False,global_approx = False):
         zz_ = load_f(catalog_dir+filename)['z']
         #Grid_Tspin          = pickle.load(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        if ion == 'exc_set' :
+            Grid_xHII           = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        else :
+            Grid_xHII = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],  'rb'))
         #Grid_xtot_ov       = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
@@ -462,7 +466,7 @@ def compute_GS(param,string='',RSD = False,global_approx = False):
     pickle.dump(file=open('./physics/GS_'+string + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 
-def compute_PS(param,Tspin = False,RSD = False):
+def compute_PS(param,Tspin = False,RSD = False,ion = None):
     """
     Parameters
     ----------
@@ -489,10 +493,6 @@ def compute_PS(param,Tspin = False,RSD = False):
 
     z_arr = []
     for filename in os.listdir(catalog_dir): #count the number of snapshots
-        #with open(catalog_dir+filename, "r") as file:
-        #    file.readline()
-        #    a = float(file.readline()[4:])
-        #    zz_ = 1 / a - 1
         zz_ = load_f(catalog_dir+filename)['z']
         z_arr.append(zz_)
 
@@ -521,13 +521,12 @@ def compute_PS(param,Tspin = False,RSD = False):
 
 
     for filename in os.listdir(catalog_dir):
-        #with open(catalog_dir+filename, "r") as file:
-        #    file.readline()
-        #    a = float(file.readline()[4:])
-        #    zz_ = 1 / a - 1
         zz_ = load_f(catalog_dir+filename)['z']
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        if ion == 'exc_set' :
+            Grid_xHII           = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        else :
+            Grid_xHII = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],  'rb'))
         Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
 
