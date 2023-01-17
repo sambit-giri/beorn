@@ -3,19 +3,19 @@ In this script we define functions that can be called to :
 1. run the RT solver and compute the evolution of the T, x_HI profiles, and store them
 2. paint the profiles on a grid.
 """
-import radtrans as rad
+import beorn as rad
 from scipy.interpolate import splrep,splev, interp1d
 import numpy as np
 import pickle
 import datetime
-from radtrans.constants import cm_per_Mpc, sec_per_year, M_sun, m_H, rhoc0, Tcmb0
-from radtrans.astro import Read_Rockstar
-from radtrans.cosmo import T_adiab, Hubble, D
+from .constants import cm_per_Mpc, sec_per_year, M_sun, m_H, rhoc0, Tcmb0
+from .astro import Read_Rockstar
+from .cosmo import T_adiab, Hubble, D
 import os
 import copy
-from radtrans.profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast, put_profiles_group, stacked_lyal_kernel, stacked_T_kernel
-from radtrans.couplings import x_coll,rho_alpha, S_alpha
-from radtrans.global_qty import J_alpha_n, ion_profile
+from .profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast, put_profiles_group, stacked_lyal_kernel, stacked_T_kernel
+from .couplings import x_coll,rho_alpha, S_alpha
+from .global_qty import J_alpha_n, ion_profile
 from os.path import exists
 from .python_functions import load_f
 
@@ -751,3 +751,74 @@ def RSD_field(param,density_field,zz):
     dv_dr_over_H = np.real(scipy.fft.ifftn(dv_dr_k_over_H))  #### THIS IS dv_dr/H
 
     return dv_dr_over_H + 1
+
+
+
+
+
+def saturated_Tspin(param,ion = None):
+    """
+    Computes the power spectrum and GS under the assumption that Tspin>>Tgamma (saturated).
+    """
+    print('Computing GS and PS under the assumption Tspin >> Tgamma')
+    start_time = datetime.datetime.now()
+    import tools21cm as t2c
+    catalog_dir = param.sim.halo_catalogs
+    model_name = param.sim.model_name
+    nGrid = param.sim.Ncell
+    Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
+    factor = 27 * Ob * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)  # factor used in dTb calculation
+
+    Lbox = param.sim.Lbox  # Mpc/h
+    if isinstance(param.sim.kbin, int):
+        kbins = np.logspace(np.log10(param.sim.kmin), np.log10(param.sim.kmax), param.sim.kbin, base=10)  # h/Mpc
+    elif isinstance(param.sim.kbin, str):
+        kbins = np.loadtxt(param.sim.kbin)
+    else:
+        print( 'param.sim.kbin should be either a path to a text files containing kbins edges values or it should be an int.')
+
+    nbr_snap = 0
+    for filename in os.listdir(catalog_dir):  # count the number of snapshots
+        nbr_snap+=1
+
+    #PS_xHII = np.zeros((nbr_snap, len(kbins) - 1))
+    #PS_rho = np.zeros((nbr_snap, len(kbins) - 1))
+    PS_dTb = np.zeros((nbr_snap, len(kbins) - 1))
+
+    zz, xHII, dTb = [], [], []
+    print('Looping over redshifts....')
+    for ii, filename in enumerate(os.listdir(catalog_dir)):
+        zz_ = load_f(catalog_dir + filename)['z']
+        dens_field = param.sim.dens_field
+        if dens_field is not None:
+            delta_b = load_delta_b(param, filename)
+        else:
+            delta_b = 0
+        zz.append(zz_)
+        if ion == 'exc_set':
+            Grid_xHII = pickle.load( file=open('./grid_output/xHII_exc_set_' + str(nGrid) + '_' + model_name + '_snap' + filename[4:-5],'rb'))
+        else:
+            Grid_xHII = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],'rb'))
+
+        Grid_dTb = factor * np.sqrt(1 + zz_) * (1 - Grid_xHII) * (delta_b + 1)
+
+        if Grid_xHII.size == 1:
+            Grid_xHII = np.full((nGrid, nGrid, nGrid), 0)  ## to avoid div by zero
+        if Grid_dTb.size == 1:
+            Grid_dTb = np.full((nGrid, nGrid, nGrid), 1)
+
+        #  delta_XHII = Grid_xHII / np.mean(Grid_xHII) - 1
+        delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
+        xHII.append(np.mean(Grid_xHII))
+        dTb.append(np.mean(Grid_dTb))
+        PS_rho[ii] = t2c.power_spectrum.power_spectrum_1d(delta_b, box_dims=Lbox, kbins=kbins)[0]
+        PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
+        PS_dTb[ii],k_bins = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
+
+    z_arr, xHII, dTb = np.array(zz), np.array(xHII), np.array(dTb)
+    Dict = {'z': z_arr, 'k': k_bins, 'dTb': dTb, 'xHII': xHII, 'PS_dTb': PS_dTb, 'PS_xHII': PS_xHII, 'PS_rho': PS_rho}
+    end_time = datetime.datetime.now()
+
+    print('Computing the power spectra under the assumption Tspin >> Tgamma took : ', start_time - end_time)
+    pickle.dump( file=open('./physics/GS_PS_Tspin_saturated_' + str(nGrid) + '_' + model_name + '.pkl', 'wb'), obj=Dict)
+
