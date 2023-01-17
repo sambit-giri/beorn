@@ -332,7 +332,7 @@ def grid_dTb(param,ion = None):
         zz_ = load_f(catalog_dir+filename)['z']
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         if ion == 'exc_set':
-            Grid_xHII = pickle.load(file=open('./grid_output/xHII_exc_set' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],'rb'))
+            Grid_xHII = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],'rb'))
         else :
             Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         #Grid_xtot_ov        = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
