@@ -332,7 +332,7 @@ def grid_dTb(param,ion = None):
         zz_ = load_f(catalog_dir+filename)['z']
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         if ion == 'exc_set':
-            Grid_xHII = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid)  + model_name + '_snap' + filename[4:-5],'rb'))
+            Grid_xHII = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid) +'_' + model_name + '_snap' + filename[4:-5],'rb'))
         else :
             Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         #Grid_xtot_ov        = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
@@ -400,7 +400,7 @@ def compute_GS(param,string='',RSD = False,global_approx = False,ion = None):
         #Grid_Tspin          = pickle.load(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         if ion == 'exc_set' :
-            Grid_xHII           = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid)  + model_name + '_snap' + filename[4:-5], 'rb'))
+            Grid_xHII           = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid) +'_' + model_name + '_snap' + filename[4:-5], 'rb'))
         else :
             Grid_xHII = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],  'rb'))
         #Grid_xtot_ov       = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
@@ -527,7 +527,7 @@ def compute_PS(param,Tspin = False,RSD = False,ion = None):
         zz_ = load_f(catalog_dir+filename)['z']
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         if ion == 'exc_set' :
-            Grid_xHII           = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid)  + model_name + '_snap' + filename[4:-5], 'rb'))
+            Grid_xHII           = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid) +'_' + model_name + '_snap' + filename[4:-5], 'rb'))
         else :
             Grid_xHII = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],  'rb'))
         Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
