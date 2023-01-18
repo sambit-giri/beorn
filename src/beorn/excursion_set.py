@@ -115,7 +115,7 @@ def excursion_set(filename,param):
     print('pixel size is:', round(pixel_size,4), 'cMpc/h. With a stepping of ',param.exc_set.stepping  ,'pixel, it leads to ', int(round((Rsmoothing_Max - stepping) / stepping,4)) ,'steps:')
 
     for Rsmoothing in np.arange(pixel_size, Rsmoothing_Max, stepping):
-        kern = profile_kern_sharpk(rgrid, Rsmoothing)
+        kern = profile_kern(rgrid, Rsmoothing)
         smooth_rho_ov_rhobar = convolve_fft(delta_field + 1, kern, boundary='wrap', normalize_kernel=True,allow_huge=True)  ## rho_smooth/rho_bar
         Msmooth = M_of_R(Rsmoothing, param)
 
@@ -190,6 +190,7 @@ def f_coll_norm(param,Mmin,z):
     """
     par = HMF_par(param)
     par.code.z = [z]
+    par.PS.A = 0.322
     HMF = dm.HMF(par)
     HMF.generate_HMF(par)
     ind_min = np.argmin(np.abs(HMF.tab_M - Mmin))
@@ -207,6 +208,7 @@ def f_coll_PS(param,Mmin,z):
     par.code.z = [z]
     par.PS.p = 0
     par.PS.q = 1
+    par.PS.A = 0.5
     HMF = dm.HMF(par)
     HMF.generate_HMF(par)
     ind_min = np.argmin(np.abs(HMF.tab_M - Mmin))
