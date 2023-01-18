@@ -109,7 +109,7 @@ def excursion_set(filename,param):
     Var_M0, dVarM0_dM = Variance(param, M0)
     Var_min = np.interp(Mmin, M0, Var_M0)
     Nion = param.source.Nion
-    n_rec = 1.5  # param.reio.n_rec
+    n_rec = param.exc_set.n_rec
     dc_z = delta_c(z, param)
 
     print('pixel size is:', round(pixel_size,4), 'cMpc/h. With a stepping of ',param.exc_set.stepping  ,'pixel, it leads to ', int(round((Rsmoothing_Max - stepping) / stepping,4)) ,'steps:')
@@ -136,7 +136,7 @@ def excursion_set(filename,param):
         nion_grid = np.interp(smooth_rho_ov_rhobar, rho_norm_array, nion_arr)
 
         #renorm = fcoll_ST / (np.mean(nion_grid) / Nion) ## renormalize to the collapsed fraction given by ST HMF (including fstar and fesc..)
-        nion_grid = renorm * nion_grid / (1+n_rec)
+        nion_grid = renorm * nion_grid / (n_rec)
         ion_map[np.where(nion_grid >= 1)] = 1
 
         if len(np.where(nion_grid >= 1)[0])==0:
@@ -154,9 +154,10 @@ def excursion_set(filename,param):
     nion_arr = np.trapz(Nion * np.nan_to_num(f_esc(param, M0) * f_star_Halo(param, M0) * np.abs(dVarM0_dM) * f_Conditional(dc_z, Var_M0, ( (rho_norm_array[:, None] - 1) / D(1 / (1 + z), param)), Var_cell)), M0)
     nion_arr[np.where(nion_arr < 0)] = Nion * np.interp(Mcell, M0, f_esc(param, M0) * f_star_Halo(param, M0))
     nion_grid = np.interp(delta_field + 1, rho_norm_array, nion_arr)
-    nion_grid = renorm * nion_grid / (1 + n_rec)
+    nion_grid = renorm * nion_grid / (n_rec)
 
     ion_map[np.where(nion_grid >= 1)] = 1
+    nion_grid = nion_grid.clip(max=1)
     ion_map[np.where(ion_map == 0)] = nion_grid[np.where(ion_map == 0)]
     print('Done for z = ',z,', xHII = ',np.mean(ion_map))
 

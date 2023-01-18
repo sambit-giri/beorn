@@ -128,7 +128,7 @@ def excursion_set_par():
         ### HMF parameters that we use to normalise the collapsed fraction.
         "filter": 'tophat',           # tophat, sharpk or smoothk
         "c": 1,                       # scale to halo mass relation (1 for tophat, 2.5 for sharp-k, 3 for smooth-k)
-        "q" : 0.707,                  # q for f(nu) [0.707,1,1] for [ST,smoothk or sharpk,PS]
+        "q" : 0.8,                  # q for f(nu) [0.707,1,1] for [ST,smoothk or sharpk,PS] (q = 0.8 with tophat fits better the high redshift z>6 HMF)
         "p" : 0.3,                    # p for f(nu) [0.3,0.3,0] for [ST,smoothk or sharpk,PS]
         "delta_c" : 1.686,            # critical density
         "A" : 0.322,                  # A = 0.322 except 0.5 for PS Spherical collapse (to double check)
