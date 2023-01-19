@@ -91,11 +91,13 @@ def excursion_set(filename,param):
     delta_field = load_delta_b(param,filename) # load the overdensity field delta = rho/rho_bar-1
     Mmin = param.source.M_min
     M0 = np.logspace(np.log10(Mmin), 15, 100, base=10)
+    n_rec = param.exc_set.n_rec
+    Nion = param.source.Nion
 
-    fcoll_ST = f_coll_norm(param,Mmin,z)
-    fcoll_PS = f_coll_PS(param,Mmin,z)
-    renorm = fcoll_ST / fcoll_PS
-    print('renorm is : ', round(renorm, 5))
+    fcoll_ion_ST = Nion * f_coll_norm(param,Mmin,z)/n_rec
+    #fcoll_PS = f_coll_PS(param,Mmin,z)
+    #renorm = fcoll_ST / fcoll_PS
+    #print('renorm is : ', round(renorm, 5))
 
     pixel_size = Lbox / nGrid
     x = np.linspace(-Lbox / 2, Lbox / 2, nGrid)  # y, z will be the same.
@@ -108,8 +110,7 @@ def excursion_set(filename,param):
 
     Var_M0, dVarM0_dM = Variance(param, M0)
     Var_min = np.interp(Mmin, M0, Var_M0)
-    Nion = param.source.Nion
-    n_rec = param.exc_set.n_rec
+
     dc_z = delta_c(z, param)
 
     print('pixel size is:', round(pixel_size,4), 'cMpc/h. With a stepping of ',param.exc_set.stepping  ,'pixel, it leads to ', int(round((Rsmoothing_Max - stepping) / stepping,4)) ,'steps:')
@@ -125,18 +126,26 @@ def excursion_set(filename,param):
         min_rho = np.min(smooth_rho_ov_rhobar) #rho/rho_bar
         max_rho = np.max(smooth_rho_ov_rhobar)
         rho_norm_array = np.linspace(min_rho,max_rho,100)
+        ind_max = np.argmin(np.abs(M0 - Msmooth))  # integrate only up to the Mass contained in Rsmooth
+        M_range = M0[:ind_max]
+
                 # to avoid computing the integral for each grid pixel, we do this interpolation trick
-        nion_arr = np.trapz(Nion * np.nan_to_num(f_esc(param,M0) * f_star_Halo(param,M0) * np.abs(dVarM0_dM) * f_Conditional(dc_z, Var_M0, ((rho_norm_array[:,None]-1)/D(1/(1+z),param)),Var_Rsmooth)),M0)
+        nion_arr = np.trapz(Nion * np.nan_to_num(f_esc(param,M_range) * f_star_Halo(param,M_range) * np.abs(dVarM0_dM[:ind_max]) * f_Conditional(dc_z, Var_M0[:ind_max], ((rho_norm_array[:,None]-1)/D(1/(1+z),param)),Var_Rsmooth)),M_range)
 
         ## when nion_arr turns negative, it means that delta_rho/D(z) is larger than delta(z).
         ## hence the cell has collapsed in a halo of mass at least M(Rsmooth)
         ## the value of nion is hence fstar(Msmooth) * fesc * Nion
         nion_arr[np.where(nion_arr < 0)] = Nion * np.interp(Msmooth, M0, f_esc(param, M0) * f_star_Halo(param, M0))
-
+        nion_arr = nion_arr / n_rec
+        ###set the max value of nion to be 1 (equivalent of fcoll, but for the ionisation fraction)
+        ### --> AFTER this you can normalize to ShethTormen fcoll_ion !!
+        nion_arr = nion_arr.clip(max=1)
         nion_grid = np.interp(smooth_rho_ov_rhobar, rho_norm_array, nion_arr)
 
         #renorm = fcoll_ST / (np.mean(nion_grid) / Nion) ## renormalize to the collapsed fraction given by ST HMF (including fstar and fesc..)
-        nion_grid = renorm * nion_grid / (n_rec)
+        #nion_grid = renorm * nion_grid
+
+        nion_grid = nion_grid / np.mean(nion_grid) * fcoll_ion_ST
         ion_map[np.where(nion_grid >= 1)] = 1
 
         if len(np.where(nion_grid >= 1)[0])==0:
@@ -153,8 +162,10 @@ def excursion_set(filename,param):
     rho_norm_array = np.linspace(min_rho, max_rho, 100)
     nion_arr = np.trapz(Nion * np.nan_to_num(f_esc(param, M0) * f_star_Halo(param, M0) * np.abs(dVarM0_dM) * f_Conditional(dc_z, Var_M0, ( (rho_norm_array[:, None] - 1) / D(1 / (1 + z), param)), Var_cell)), M0)
     nion_arr[np.where(nion_arr < 0)] = Nion * np.interp(Mcell, M0, f_esc(param, M0) * f_star_Halo(param, M0))
+    nion_arr = nion_arr/n_rec
+    nion_arr = nion_arr.clip(max=1)
     nion_grid = np.interp(delta_field + 1, rho_norm_array, nion_arr)
-    nion_grid = renorm * nion_grid / (n_rec)
+    nion_grid = nion_grid / np.mean(nion_grid) * fcoll_ion_ST
 
     ion_map[np.where(nion_grid >= 1)] = 1
     nion_grid = nion_grid.clip(max=1)
@@ -194,8 +205,10 @@ def f_coll_norm(param,Mmin,z):
     HMF = dm.HMF(par)
     HMF.generate_HMF(par)
     ind_min = np.argmin(np.abs(HMF.tab_M - Mmin))
-    fcoll_ST = np.trapz(f_esc(param, HMF.tab_M[ind_min:]) * f_star_Halo(param, HMF.tab_M[ind_min:]) * HMF.HMF[0][ind_min:],HMF.tab_M[ind_min:]) / param.cosmo.Om / rhoc0  # integral of dndlnM dM
-    return fcoll_ST
+    #fcoll_ST = np.trapz(f_esc(param, HMF.tab_M[ind_min:]) * f_star_Halo(param, HMF.tab_M[ind_min:]) * HMF.HMF[0][ind_min:],HMF.tab_M[ind_min:]) / param.cosmo.Om / rhoc0  # integral of dndlnM dM
+    fcoll_ion_ST = np.trapz(f_esc(param, HMF.tab_M[ind_min:]) * f_star_Halo(param, HMF.tab_M[ind_min:]) * HMF.HMF[0][ind_min:],HMF.tab_M[ind_min:]) / param.cosmo.Om / rhoc0
+
+    return fcoll_ion_ST
 
 def f_coll_PS(param,Mmin,z):
     """
