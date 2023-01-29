@@ -315,7 +315,7 @@ def Nion_(Mh,param):
     The total number of ionising photons produced by Mh.
     """
     Nion, Om, Ob, h0 = param.source.Nion, param.cosmo.Om,param.cosmo.Ob,param.cosmo.h
-    return f_star_Halo(param,Mh)* f_esc(param,Mh) * Ob/Om * Mh/h0 / m_p_in_Msun * Nion
+    return f_star_Halo(param,Mh) * f_esc(param,Mh) * Ob/Om * Mh/h0 / m_p_in_Msun * Nion
 
 
 def run_Sem_Num(param):
@@ -430,14 +430,19 @@ def Sem_Num(filename,param):
         print('Ion Fraction should be  ',round(np.sum(Nion_grid)/(rhoc0*Ob/h0/m_p_in_Msun * Lbox**3)/n_rec, 3)) #theoretically expected value (Nion_to/N_H_tot)
 
         Rsmoothing = pixel_size
-        while Rsmoothing < Rsmoothing_Max:
+        ii = 0
+        nbr_ion_pix = 1 # arbitraty value larger than 0
+        while Rsmoothing < Rsmoothing_Max and nbr_ion_pix > 0: # to stop the while loop earlier if there is no more ionisation.
             kern = profile_kern(rgrid, Rsmoothing)
             smooth_delta = convolve_fft(delta_field, kern, boundary='wrap', normalize_kernel=True,allow_huge=True)  # Smooth the density field
             nbr_H = (smooth_delta + 1) * rhoc0 * Ob / h0 / m_p_in_Msun * pixel_size ** 3 # Grid with smoothed number of H atom per pixel.
             Nion_grid_smoothed = convolve_fft(Nion_grid, kern, boundary='wrap', normalize_kernel=True,allow_huge=True)  ## Grid with smoothed the nbr of ionising photons
             ion_map[np.where(Nion_grid_smoothed / nbr_H / n_rec >= 1)] = 1 # compare Nion and nH in each pixel. Ionised when Nion/N_H/n_rec >= 1
             Rsmoothing = Rsmoothing * 1.1
-            #print('Rsmoothing is', Rsmoothing, 'there are ', len(np.where(Nion_grid_smoothed / nbr_H / 1.5 >= 1)[0]),'ionisations.', 'mean Nion is')
+            nbr_ion_pix = len(np.where(Nion_grid_smoothed / nbr_H / n_rec >= 1)[0])
+            if ii%5 == 0 :
+                print('Rsmoothing is', Rsmoothing, 'there are ', len(np.where(Nion_grid_smoothed / nbr_H / 1.5 >= 1)[0]),'ionisations.', 'mean Nion is')
+            ii+= 1
 
         ##partial ionisations
         nbr_H = (delta_field + 1) * rhoc0 * Ob / h0 / m_p_in_Msun * pixel_size ** 3
