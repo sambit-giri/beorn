@@ -388,7 +388,7 @@ def Sem_Num(filename,param):
     Lbox        = param.sim.Lbox
     z_start     = param.solver.z
     halo_catalog = load_f(param.sim.halo_catalogs + filename)
-
+    model_name = param.sim.model_name
     H_Masses, H_X, H_Y, H_Z, z = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], halo_catalog['z']
 
     delta_field = load_delta_b(param,filename) # load the overdensity field delta = rho/rho_bar-1
