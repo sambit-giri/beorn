@@ -262,7 +262,7 @@ def f_Conditional(dc,S,dc0,S0):
 
 delta_c0 = 1.686
 def delta_c(z,par):
-    return delta_c0 / D(1/(z+1),par)
+    return par.exc_set.delta_c / D(1/(z+1),par)
 
 def R_of_M(M,par):
     return (3 * M / (4 * rhoc0 * par.cosmo.Om * np.pi)) ** (1. / 3)
@@ -299,37 +299,153 @@ def HMF_par(param):
 
 
 
+from beorn.astro import f_star_Halo, f_esc
 
-
-
-def z_to_a(z):
+def Nion_(Mh,param):
     """
-    Convert redshift to scale factor.
+    Number of ionising photons for a given halo. This function is used for the Sem Num method of Majumdar 2014.
 
     Parameters
     ----------
-    z: float 
-        Redshift
+    param: Beorn parameter dictionnary.
+    Mh : Halo Mass in Msol/h
 
     Returns
     -------
-    a: float
-        The corresponding scale factor
+    The total number of ionising photons produced by Mh.
     """
-    return 1/(1+z)
+    Nion, Om, Ob, h0 = param.source.Nion, param.cosmo.Om,param.cosmo.Ob,param.cosmo.h
+    return f_star_Halo(param,Mh)* f_esc(param,Mh) * Ob/Om * Mh/h0 / m_p_in_Msun * Nion
 
-def a_to_z(a):
+
+def run_Sem_Num(param):
     """
-    Convert scale factor to redshift.
+    Run the Sem Num method (Majumdar 2014) to produce ionisation map.
 
     Parameters
     ----------
-    a: float 
-        Scale factor
+    param: Beorn parameter dictionnary.
 
     Returns
     -------
-    z: float
-        The corresponding redshift
+    Nothing
     """
-    return 1./a-1
+
+    start_time = datetime.datetime.now()
+    LBox = param.sim.Lbox  # Mpc/h
+    nGrid = param.sim.Ncell  # number of grid cells
+    catalog_dir = param.sim.halo_catalogs
+    model_name = param.sim.model_name
+
+    if catalog_dir is None :
+        print('You should specify param.sim.halo_catalogs. Should be a file containing the halo catalogs.')
+    print('Applying Sem Numerical Method on top of halos to produce ionisation maps, with', nGrid,'pixels per dim. Box size is',LBox ,'cMpc/h.')
+
+    if param.sim.mpi4py == 'yes':
+        import mpi4py.MPI
+        rank = mpi4py.MPI.COMM_WORLD.Get_rank()
+        size = mpi4py.MPI.COMM_WORLD.Get_size()
+    elif param.sim.mpi4py == 'no':
+        rank = 0
+        size = 1
+    else :
+        print('param.sim.mpi4py should be yes or no')
+
+
+    for ii, filename in enumerate(os.listdir(catalog_dir)):
+        if rank == ii % size:
+            print('Core nbr',rank,'is taking care of snap',filename[4:-5])
+            if exists('./grid_output/xHII_Sem_Num_' + str(nGrid)+ '_' + model_name + '_snap' + filename[4:-5]):
+                print('xHII map for snapshot ',filename[4:-5],'already painted. Skiping.')
+            else:
+                print('----- SemNum for snapshot nbr :', filename[4:-5], '-------')
+                Sem_Num(filename,param)
+                print('----- Snapshot nbr :', filename[4:-5], ' is done -------')
+
+    end_time = datetime.datetime.now()
+    print('DONE. Stored the xHII grid. It took in total: ',end_time-start_time,'to do the Semi Num method.')
+    print('  ')
+
+
+
+
+
+def Sem_Num(filename,param):
+    """
+    Produces xHII map with Sem Num method for a single snapshot.
+
+    Parameters
+    ----------
+    param: Beorn parameter dictionnary.
+    filename : halo catalog name. Will be called by load_delta_b in run.py
+
+    Returns
+    -------
+    Nothing
+    """
+    start_time = datetime.datetime.now()
+    nGrid       = param.sim.Ncell
+    Lbox        = param.sim.Lbox
+    z_start     = param.solver.z
+    halo_catalog = load_f(param.sim.halo_catalogs + filename)
+
+    H_Masses, H_X, H_Y, H_Z, z = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], halo_catalog['z']
+
+    delta_field = load_delta_b(param,filename) # load the overdensity field delta = rho/rho_bar-1
+
+    n_rec = param.exc_set.n_rec
+    Nion, Om, Ob, h0 = param.source.Nion, param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
+
+    pixel_size = Lbox / nGrid
+    x = np.linspace(-Lbox / 2, Lbox / 2, nGrid)  # y, z will be the same.
+    rx, ry, rz = np.meshgrid(x, x, x, sparse=True)
+    rgrid = np.sqrt(rx ** 2 + ry ** 2 + rz ** 2)
+
+    ion_map  = np.zeros((nGrid, nGrid, nGrid))  # This will be our final xHII map.
+    Rsmoothing_Max = param.exc_set.R_max        # Mpc/h, max distance to which we smooth
+
+    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
+    Mh_bin_z = M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))
+    ##Bin the halo masses to produce the Nion grid quicker.
+    Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / Mh_bin_z)), axis=1)
+    print('There are', H_Masses.size, 'halos at z=', z, )
+
+    if H_Masses.size == 0:
+        print('There aint no sources')
+        ion_map = np.array([0])
+
+    else:
+        Pos_Bubles = np.vstack((H_X, H_Y, H_Z)).T  # Halo positions.
+        Pos_Bubbles_Grid = np.array([Pos_Bubles / Lbox * nGrid]).astype(int)[0]
+        Pos_Bubbles_Grid[np.where(Pos_Bubbles_Grid == nGrid)] = nGrid - 1
+
+        Nion_grid = np.zeros((nGrid, nGrid, nGrid))  # grid containing the value of Nion (see Majumdar14 eq.3)
+        for ih in range(len(Mh_bin_z)):
+            source_grid = np.zeros((nGrid, nGrid, nGrid))
+            indices = np.where(Indexing == ih)
+            for i, j, k in Pos_Bubbles_Grid[indices]:
+                source_grid[i, j, k] += 1
+            Nion_grid += source_grid * Nion_(Mh_bin_z[ih], param)
+
+        print('Ion Fraction should be  ',round(np.sum(Nion_grid)/(rhoc0*Ob/h0/m_p_in_Msun * Lbox**3)/n_rec, 3)) #theoretically expected value (Nion_to/N_H_tot)
+
+        Rsmoothing = pixel_size
+        while Rsmoothing < Rsmoothing_Max:
+            kern = profile_kern(rgrid, Rsmoothing)
+            smooth_delta = convolve_fft(delta_field, kern, boundary='wrap', normalize_kernel=True,allow_huge=True)  # Smooth the density field
+            nbr_H = (smooth_delta + 1) * rhoc0 * Ob / h0 / m_p_in_Msun * pixel_size ** 3 # Grid with smoothed number of H atom per pixel.
+            Nion_grid_smoothed = convolve_fft(Nion_grid, kern, boundary='wrap', normalize_kernel=True,allow_huge=True)  ## Grid with smoothed the nbr of ionising photons
+            ion_map[np.where(Nion_grid_smoothed / nbr_H / n_rec >= 1)] = 1 # compare Nion and nH in each pixel. Ionised when Nion/N_H/n_rec >= 1
+            Rsmoothing = Rsmoothing * 1.1
+            #print('Rsmoothing is', Rsmoothing, 'there are ', len(np.where(Nion_grid_smoothed / nbr_H / 1.5 >= 1)[0]),'ionisations.', 'mean Nion is')
+
+        ##partial ionisations
+        nbr_H = (delta_field + 1) * rhoc0 * Ob / h0 / m_p_in_Msun * pixel_size ** 3
+        ion_map[np.where(Nion_grid / nbr_H/n_rec >= 1)] = 1
+        xHII_partial = Nion_grid / nbr_H/n_rec
+        indices_partial = np.where(ion_map < 1)
+        ion_map[indices_partial] = xHII_partial[indices_partial]
+
+    end_time = datetime.datetime.now()
+    print('Done with z=',z,': xHII =',np.mean(ion_map),'it took :',end_time-start_time)
+    save_f(file = './grid_output/xHII_Sem_Num_' + str(nGrid)+ '_' + model_name + '_snap' + filename[4:-5], obj = ion_map)

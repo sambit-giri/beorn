@@ -88,7 +88,7 @@ def Plotting_GS(physics, x__approx, GS, PS, save_loc=None):
 
     HM_zz, HM_dTb = GS['z'], GS['dTb']
 
-    fig = plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(10, 20))
 
     ################################################ dTb
     axis1 = fig.add_subplot(421)
@@ -131,7 +131,7 @@ def Plotting_GS(physics, x__approx, GS, PS, save_loc=None):
     # axis3.semilogy(x__approx['z'],x__approx['Gamma_heat'],'r',ls='--')
 
     axis3.semilogy(HM_zz, GS['sfrd_lyal'], 'b', ls='-', label='sfrd [Msol h^2/yr/Mpc]')
-    axis3.semilogy(x__approx['z'], x__approx['sfrd'], 'b', ls='--')
+    #axis3.semilogy(x__approx['z'], x__approx['sfrd'], 'b', ls='--')
     axis3.set_xlim(5, 24)
     axis3.set_ylim(1e-6, 1e2)
     axis3.set_ylabel('')
@@ -143,7 +143,7 @@ def Plotting_GS(physics, x__approx, GS, PS, save_loc=None):
 
     axis4 = fig.add_subplot(424)
     axis4.semilogy(GS['z'], GS['x_al'], 'r', label='x_al')
-    axis4.semilogy(x__approx['z'], physics['xal_coda_style'], 'r', ls='--')
+    axis4.semilogy(physics['z'], physics['x_al'], 'r', ls='--')
 
     # axis4.semilogy(HM_zz,GS['sfrd_lyal'],'b',ls='-',label='sfrd [Msol h^2/yr/Mpc]')
     # axis4.semilogy(x__approx['z'],x__approx['sfrd'],'b',ls='--')
@@ -158,8 +158,8 @@ def Plotting_GS(physics, x__approx, GS, PS, save_loc=None):
 
     axis5 = fig.add_subplot(425)
     axis5.plot(GS['z'], GS['x_HI'], 'r', label='xHI')
-    axis5.plot(x__approx['z'], 1 - x__approx['xHII'], 'r', ls='--', label='approx')
-    axis5.plot(physics['z'], 1 - physics['x_HII'], 'orange', ls=':', lw=5)
+    #axis5.plot(x__approx['z'], 1 - x__approx['xHII'], 'r', ls='--', label='approx')
+    axis5.plot(physics['z'], 1 - physics['x_HII'], ls='--', lw=5)
     axis5.set_xlim(5, 20)
     # axis5.set_ylim(1e-3,1e4)
     axis5.set_ylabel('')
@@ -203,11 +203,11 @@ def Plotting_PS(k_array, z, physics, PS_Dict, GS, PS, save_loc=None):
     RT_zz = physics['z']  #
     Tcmb = (1 + RT_zz) * Tcmb0
     RT_dTb_GS = physics['dTb_GS']  # *(1-Tcmb/physics['Tk'])/(1-Tcmb/physics['Tk_neutral'])
-    x_tot = physics['xal_coda_style'] + physics['x_coll']
+    x_tot = physics['x_al'] + physics['x_coll']
     RT_dTb = physics['dTb']  # * x_tot/(1 + x_tot) * (physics['x_al']+physics['x_coll']+1) / (physics['x_al']+physics['x_coll'])
 
-    beta_a = physics['xal_coda_style'] / x_tot / (1 + x_tot)  # physics['beta_a'] #
-    beta_a_HM = GS['x_al'] / (GS['x_al'] + GS['x_cl']) / (1 + GS['x_al'] + GS['x_cl'])
+    beta_a = physics['beta_a']   #physics['xal_coda_style'] / x_tot / (1 + x_tot)  # physics['beta_a'] #
+    beta_a_HM = GS['x_al'] / (GS['x_al'] + GS['x_coll']) / (1 + GS['x_al'] + GS['x_coll'])
 
     Tbg = Tcmb0 * (1 + 135) * (1 + RT_zz) ** 2 / (1 + 135) ** 2
     fr = 1  # (physics['Tk']-Tbg)/physics['Tk'] ### Halomodel primordial/heating decomp
@@ -221,7 +221,7 @@ def Plotting_PS(k_array, z, physics, PS_Dict, GS, PS, save_loc=None):
     HM_zz, HM_dTb = GS['z'], GS['dTb']
     HM_iz = np.argmin(np.abs(PS['z'] - RT_zz[RT_iz]))
 
-    fig = plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(10, 20))
 
     ################################################ dTb
     axis1 = fig.add_subplot(421)
@@ -315,11 +315,11 @@ def Plotting_PS(k_array, z, physics, PS_Dict, GS, PS, save_loc=None):
         axis4.semilogy(PS['z'], PS['k'][ind_k] ** 3 * HM_dTb ** 2 * PS['P_mu0'][:, ind_k] / 2 / np.pi ** 2, color=color,
                        label='k={}'.format(k0))
         # axis4.semilogy(PS['z'],PS['k'][ind_k]**3 * HM_dTb**2 * PS['P_angav'][:,ind_k]/2/np.pi**2,ls=':',lw=4,alpha=0.7,color=color,label='k={}'.format(k0))
-        print(PS['P_angav'][:, ind_k] / PS['P_mu0'][:, ind_k])
+       #print(PS['P_angav'][:, ind_k] / PS['P_mu0'][:, ind_k])
         print('k RT is ', round(PS_RT['k'][ind_k_RT], 4), 'k HM is,', PS['k'][ind_k])
 
-    #  axis4.semilogy(PS['z'],PS['k'][ind_k]**3 * HM_dTb**2* np.abs(PS['P_rT'][:,ind_k])/2/np.pi**2,color=color,label='k={}'.format(k0))
-    #  axis4.semilogy(RT_zz, k0**3 * RT_dTb_GS**2 * np.abs(PS_rT[:,ind_k_RT])/2/np.pi**2,color=color,alpha=0.5,ls='--',lw=4)
+    #axis4.semilogy(PS['z'],PS['k'][ind_k]**3 * HM_dTb**2* (PS['P_aa'][:,ind_k]+2*(PS['P_ba'][:,ind_k]+PS['P_Ta'][:,ind_k]+PS['P_ra'][:,ind_k]))/2/np.pi**2,color=color,label='k={}'.format(k0))
+    #axis4.semilogy(RT_zz, k0**3 * RT_dTb_GS**2 * (PS_aa[:,ind_k_RT]+2*(PS_aT[:,ind_k_RT]+PS_ab[:,ind_k_RT]+PS_ra[:,ind_k_RT]))/2/np.pi**2,color=color,alpha=0.5,ls='--',lw=4)
     axis4.semilogy([], [], color='gray', label='PS Perturbtiv', alpha=0.5, ls='--', lw=4)
     axis4.semilogy([], [], color='gray', label='PS(dTb)', ls='-.')
 
@@ -335,30 +335,24 @@ def Plotting_PS(k_array, z, physics, PS_Dict, GS, PS, save_loc=None):
     for k0 in [k_array[0]]:
         color = next(ax._get_lines.prop_cycler)['color']
         ind_k_RT = np.argmin(np.abs(PS_RT['k'] - k0))
-        # axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT]**3 * RT_dTb_GS**0 * PS_xal[:,ind_k_RT]/2/np.pi**2,color=color,alpha=0.5,ls='--',lw=4)
+        axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT]**3 * RT_dTb_GS**0 * PS_xal[:,ind_k_RT]/2/np.pi**2,color=color,alpha=0.5,ls='--',lw=4)
 
-        # axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT]**3 * np.abs(PS_ab[:,ind_k_RT])/2/np.pi**2,color='C0',alpha=0.5,ls='--',lw=4)
-        axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT] ** 3 * np.abs(PS_Tb[:, ind_k_RT]) / 2 / np.pi ** 2, color='C1',
-                       alpha=0.5, ls='--', lw=4)
-        axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT] ** 3 * np.abs(PS_aT[:, ind_k_RT]) / 2 / np.pi ** 2, color='C2',
-                       alpha=0.5, ls='--', lw=4)
+        axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT]**3 * np.abs(PS_ab[:,ind_k_RT])/2/np.pi**2,color='C1',alpha=0.5,ls='--',lw=4)
+        #axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT] ** 3 * np.abs(PS_Tb[:, ind_k_RT]) / 2 / np.pi ** 2, color='C1',alpha=0.5, ls='--', lw=4)
+        axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT] ** 3 * np.abs(PS_aT[:, ind_k_RT]) / 2 / np.pi ** 2, color='C2', alpha=0.5, ls='--', lw=4)
         # axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT]**3 * np.abs(PS_rb[:,ind_k_RT])/2/np.pi**2,color='C3',alpha=0.5,ls='--',lw=4)
-        # axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT]**3 * np.abs(PS_ra[:,ind_k_RT])/2/np.pi**2,color='C4',alpha=0.5,ls='--',lw=4)
-        axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT] ** 3 * np.abs(PS_rT[:, ind_k_RT]) / 2 / np.pi ** 2, color='C5',
-                       alpha=0.5, ls='--', lw=4)
+        axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT]**3 * np.abs(PS_ra[:,ind_k_RT])/2/np.pi**2,color='C3',alpha=0.5,ls='--',lw=4)
+        #axis5.semilogy(RT_zz, PS_RT['k'][ind_k_RT] ** 3 * np.abs(PS_rT[:, ind_k_RT]) / 2 / np.pi ** 2, color='C5',alpha=0.5, ls='--', lw=4)
 
         ind_k = np.argmin(np.abs(PS['k'] - PS_RT['k'][ind_k_RT]))
 
-        # axis5.semilogy(PS['z'],PS['k'][ind_k]**3 * HM_dTb**0* PS['P_aa'][:,ind_k]/2/np.pi**2,color=color,label='k={}'.format(k0))
-        # axis5.semilogy(PS['z'],PS['k'][ind_k]**3 * np.abs(PS['P_am'][:,ind_k])/2/np.pi**2,color='C0',label='k=am'.format(k0))
-        axis5.semilogy(PS['z'], PS['k'][ind_k] ** 3 * np.abs(PS['P_Tm'][:, ind_k]) / 2 / np.pi ** 2, color='C1',
-                       label='k=Tm'.format(k0))
-        axis5.semilogy(PS['z'], PS['k'][ind_k] ** 3 * np.abs(PS['P_aT'][:, ind_k]) / 2 / np.pi ** 2, color='C2',
-                       label='k=aT'.format(k0))
-        # axis5.semilogy(PS['z'],PS['k'][ind_k]**3 * np.abs(PS['P_rb'][:,ind_k])/2/np.pi**2,color='C3',label='k=rb'.format(k0))
-        # axis5.semilogy(PS['z'],PS['k'][ind_k]**3 * np.abs(PS['P_ra'][:,ind_k])/2/np.pi**2,color='C4',label='k=ra'.format(k0))
-        axis5.semilogy(PS['z'], PS['k'][ind_k] ** 3 * np.abs(PS['P_rT'][:, ind_k]) / 2 / np.pi ** 2, color='C5',
-                       label='k=rT'.format(k0))
+        axis5.semilogy(PS['z'],PS['k'][ind_k]**3 * HM_dTb**0* PS['P_aa'][:,ind_k]/2/np.pi**2,color=color,label='lya-lya k={}'.format(k0))
+        axis5.semilogy(PS['z'],PS['k'][ind_k]**3 * np.abs(PS['P_ba'][:,ind_k])/2/np.pi**2,color='C1',label='k=am'.format(k0))
+        #axis5.semilogy(PS['z'], PS['k'][ind_k] ** 3 * np.abs(PS['P_bT'][:, ind_k]) / 2 / np.pi ** 2, color='C1', label='k=Tm'.format(k0))
+        axis5.semilogy(PS['z'], PS['k'][ind_k] ** 3 * np.abs(PS['P_Ta'][:, ind_k]) / 2 / np.pi ** 2, color='C2',   label='k=aT'.format(k0))
+        #axis5.semilogy(PS['z'],PS['k'][ind_k]**3 * np.abs(PS['P_rb'][:,ind_k])/2/np.pi**2,color='C2',label='k=rb'.format(k0))
+        axis5.semilogy(PS['z'],PS['k'][ind_k]**3 * np.abs(PS['P_ra'][:,ind_k])/2/np.pi**2,color='C3',label='k=ra'.format(k0))
+        #axis5.semilogy(PS['z'], PS['k'][ind_k] ** 3 * np.abs(PS['P_rT'][:, ind_k]) / 2 / np.pi ** 2, color='C5',    label='k=rT'.format(k0))
 
         print('k RT is ', round(PS_RT['k'][ind_k_RT], 2), 'k HM is,', PS['k'][ind_k])
 
@@ -367,7 +361,7 @@ def Plotting_PS(k_array, z, physics, PS_Dict, GS, PS, save_loc=None):
 
     axis5.set_ylabel('$\Delta^{2} = k^{3}P(k)/(2\pi^{2})$   ', fontsize=14)
 
-    axis5.legend(title='cross Temp PS ')
+    axis5.legend(title='lyal PS ')
     axis5.set_xlabel('z', fontsize=14)
 
     ################################################ Beta factors
@@ -728,7 +722,7 @@ def plot_Beorn_PS_of_z(k, GS_Beorn, PS_Beorn,ls='-',lw=1, color='b',RSD = False,
 
 
 
-def plot_PS_fast(z, file, color, ax, Beta=1, label='', qty='xHII'):
+def plot_PS_fast(z, file, color, ax, Beta=1, label='', qty='xHII',ls='--'):
     """""""""
     Plot a 21cm FAST power spectrum as a function of k. 
     
@@ -742,14 +736,14 @@ def plot_PS_fast(z, file, color, ax, Beta=1, label='', qty='xHII'):
     kk, zz = PS['k'], PS['z']
     ind_z = np.argmin(np.abs(zz - z))
     try:
-        ax.loglog(kk, kk ** 3 * Beta* np.abs(PS['PS_' + qty][ind_z]) / 2 / np.pi ** 2, lw=3, alpha=0.5, label=label, color=color, ls='--')
+        ax.loglog(kk, kk ** 3 * Beta* np.abs(PS['PS_' + qty][ind_z]) / 2 / np.pi ** 2, lw=3, alpha=0.5, label=label, color=color, ls=ls)
     except Exception:
         print('Fast :', PS.keys())
     plt.legend()
     plt.xlabel('k [1/Mpc]')
 
 
-def plot_PS_Beorn(z, PS, color, ax, Beta=1, label='', qty='xHII',with_dTb = False,GS=None):
+def plot_PS_Beorn(z, PS, color, ax, Beta=1, label='', qty='xHII',with_dTb = False,GS=None,ls='-'):
     """""""""
     Plot a Beorn power spectrum as a function of k.
     Beta : float, the beta factor in the perturbative expansion of dTb. Set to 1 by default. 
@@ -765,7 +759,7 @@ def plot_PS_Beorn(z, PS, color, ax, Beta=1, label='', qty='xHII',with_dTb = Fals
 
     try:
         ax.loglog(kk * 0.68, coef * kk ** 3 * Beta * np.abs(PS['PS_' + qty][ind_z]) / 2 / np.pi ** 2, lw=3, alpha=0.5, label=label,
-                  color=color)
+                  color=color,ls=ls)
     except Exception:
         print('RT:', PS.keys())
     plt.legend()
