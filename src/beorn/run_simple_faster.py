@@ -474,12 +474,13 @@ def compute_GS(param,string='',RSD = False,global_approx = False,ion = None):
     pickle.dump(file=open('./physics/GS_'+string + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 
-def compute_PS(param,Tspin = False,RSD = False,ion = None):
+def compute_PS(param,Tspin = False,RSD = False,ion = None,cross_corr = True):
     """
     Parameters
     ----------
     param : dictionnary containing all the input parameters
     Tspin : if True, will compute the spin temperature Power Spectrum as well as cross correlation with matter field and xHII field.
+    cross_corr : Choose to compute the cross correlations. If False, it speeds up.
     Returns
     -------
     Computes the power spectra of the desired quantities
@@ -571,9 +572,10 @@ def compute_PS(param,Tspin = False,RSD = False,ion = None):
         if dens_field is not None:
             delta_rho = load_delta_b(param,filename)
             PS_rho[ii]      = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=Lbox , kbins=kbins)[0]
-            PS_rho_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_XHII, delta_rho,box_dims=Lbox, kbins=kbins)[0]
-            PS_rho_xal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_rho, box_dims=Lbox, kbins=kbins)[0]
-            PS_rho_T[ii]   = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_rho, box_dims=Lbox, kbins=kbins)[0]
+            if cross_corr:
+                PS_rho_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_XHII, delta_rho,box_dims=Lbox, kbins=kbins)[0]
+                PS_rho_xal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_rho, box_dims=Lbox, kbins=kbins)[0]
+                PS_rho_T[ii]   = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_rho, box_dims=Lbox, kbins=kbins)[0]
             if Tspin :
                 PS_rho_Ts[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_rho, box_dims=Lbox, kbins=kbins)[0]
 
@@ -595,9 +597,10 @@ def compute_PS(param,Tspin = False,RSD = False,ion = None):
         if RSD:
             PS_dTb_RSD[ii] = t2c.power_spectrum.power_spectrum_1d(delta_Grid_dTb_RSD, box_dims=Lbox, kbins=kbins)[0]
 
-        PS_T_lyal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_x_al, box_dims=Lbox, kbins=kbins)[0]
-        PS_T_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
-        PS_lyal_xHII[ii]  = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
+        if cross_corr:
+            PS_T_lyal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_x_al, box_dims=Lbox, kbins=kbins)[0]
+            PS_T_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
+            PS_lyal_xHII[ii]  = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
 
         if Tspin:
             PS_Ts[ii] = t2c.power_spectrum.power_spectrum_1d(delta_Tspin, box_dims=Lbox, kbins=kbins)[0]
