@@ -117,8 +117,8 @@ def excursion_set(filename,param):
 
     Rsmoothing_Max = 50  # Mpc/h, max distance to which we smooth
     #Smoothing_scales = np.flip(np.arange(pixel_size, Rsmoothing_Max, stepping))
-    Rsmoothing = Rsmoothing_Max
-    while Rsmoothing > pixel_size:
+    Rsmoothing = pixel_size #Rsmoothing_Max
+    while Rsmoothing < Rsmoothing_Max: #pixel_size:
         kern = profile_kern(rgrid, Rsmoothing)
         smooth_rho_ov_rhobar = convolve_fft(delta_field + 1, kern, boundary='wrap', normalize_kernel=True,allow_huge=True)  ## rho_smooth/rho_bar
         Msmooth = M_of_R(Rsmoothing, param)
@@ -154,7 +154,7 @@ def excursion_set(filename,param):
         if len(np.where(nion_grid >= 1)[0])==0:
             print('Stopping at Rsmoothing  =',np.round(Rsmoothing,3),'Mpc/h')
             break  ## when there is no more ionized cell, we stop the loop
-        Rsmoothing = 0.9 * Rsmoothing
+        Rsmoothing = 1.1 * Rsmoothing
 
     #### Now without smoothing : just replace Msmooth by the mass in a cell,
     #### and the smoothed rho/rhobar by the full unsmoothed density field
