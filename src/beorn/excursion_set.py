@@ -151,9 +151,9 @@ def excursion_set(filename,param):
         nion_grid = nion_grid / np.mean(nion_grid) * fcoll_ion_ST
         ion_map[np.where(nion_grid >= 1)] = 1
 
-        #if len(np.where(nion_grid >= 1)[0])==0:
-        #    print('Stopping at Rsmoothing  =',np.round(Rsmoothing,3),'Mpc/h')
-        #    break  ## when there is no more ionized cell, we stop the loop
+        if len(np.where(nion_grid >= 1)[0])==0:
+            print('Stopping at Rsmoothing  =',np.round(Rsmoothing,3),'Mpc/h')
+            break  ## when there is no more ionized cell, we stop the loop
         Rsmoothing = 0.9 * Rsmoothing
 
     #### Now without smoothing : just replace Msmooth by the mass in a cell,
