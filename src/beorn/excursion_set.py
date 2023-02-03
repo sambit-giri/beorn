@@ -432,7 +432,7 @@ def Sem_Num(filename,param):
         Rsmoothing = pixel_size
         ii = 0
         nbr_ion_pix = 1 # arbitraty value larger than 0
-        while Rsmoothing < Rsmoothing_Max and nbr_ion_pix > 0: # to stop the while loop earlier if there is no more ionisation.
+        while Rsmoothing < Rsmoothing_Max and nbr_ion_pix > 0 and np.mean(ion_map) < 1: # to stop the while loop earlier if there is no more ionisation.
             kern = profile_kern(rgrid, Rsmoothing)
             smooth_delta = convolve_fft(delta_field, kern, boundary='wrap', normalize_kernel=True,allow_huge=True)  # Smooth the density field
             nbr_H = (smooth_delta + 1) * rhoc0 * Ob / h0 / m_p_in_Msun * pixel_size ** 3 # Grid with smoothed number of H atom per pixel.
@@ -450,6 +450,9 @@ def Sem_Num(filename,param):
         xHII_partial = Nion_grid / nbr_H/n_rec
         indices_partial = np.where(ion_map < 1)
         ion_map[indices_partial] = xHII_partial[indices_partial]
+
+    if np.mean(ion_map)==1:
+        ion_map = np.array([1])
 
     end_time = datetime.datetime.now()
     print('Done with z=',z,': xHII =',np.mean(ion_map),'it took :',end_time-start_time)
