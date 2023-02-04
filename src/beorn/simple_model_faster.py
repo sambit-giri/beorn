@@ -36,7 +36,7 @@ class simple_solver_faster:
         if self.z_initial < 35:
             print('WARNING : z_start (param.solver.z) should be larger than 35 when simple model is chosen.  ')
         self.z_end = param.solver.z_end  # starting redshift
-        self.alpha = param.source.alpha_MARf
+        self.alpha = param.source.alpha_MAR
         self.M_halo = param.source.M_halo #Msol/h
         rmin = 1e-2
         rmax = 600
