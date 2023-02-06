@@ -232,7 +232,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
             # Grid_Temp[np.where(Grid_Temp < T_adiab_z + 0.2)] = T_adiab_z
 
             if np.sum(Grid_Storage) < nGrid ** 3 and ion == True:
-                Grid_xHII = Spreading_Excess_Fast(Grid_Storage, pix_thresh=param.sim.thresh_pixel)
+                Grid_xHII = Spreading_Excess_Fast(Grid_Storage, pix_thresh=param.sim.thresh_pixel, param.sim.approx)
             else:
                 Grid_xHII = np.array([1])
 

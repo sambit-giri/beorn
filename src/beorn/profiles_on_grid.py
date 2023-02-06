@@ -365,7 +365,7 @@ def Spreading_Excess_HR(Grid_Storage):
     return Grid
 
 
-def Spreading_Excess_Fast(Grid_input,plot__=False,pix_thresh=None):
+def Spreading_Excess_Fast(Grid_input,plot__=False,pix_thresh=None,approx = True):
     """
     Last and fastest version of the function.
     Input : Grid_Storage, the cosmological mesh grid (X,X,X) with the ionized fractions, with overlap (pixels where x_ion>1). (X can be 256, 512 ..)
@@ -415,7 +415,7 @@ def Spreading_Excess_Fast(Grid_input,plot__=False,pix_thresh=None):
         print('there are ', len(Small_regions_labels),'connected regions with less than ',pix_thresh,' pixels. They contain a fraction ', excess_ion / x_ion_tot_i,'of the total ionizing fraction.')
 
 
-        Grid = Spread_Single(Grid, small_regions, Grid_of_1 = Grid_of_1, print_time=None) # Do the spreading for the small regions
+        Grid = Spread_Single(Grid, small_regions, Grid_of_1 = Grid_of_1, print_time=None,approx = approx) # Do the spreading for the small regions
         if np.any(Grid[small_regions] > 1):
             print('small regions not correctly spread')
 
@@ -443,7 +443,7 @@ def Spreading_Excess_Fast(Grid_input,plot__=False,pix_thresh=None):
     return Grid
 
 
-def Spread_Single(Grid, connected_indices, Grid_of_1, print_time=None):
+def Spread_Single(Grid, connected_indices, Grid_of_1, print_time=None,approx = True):
     """
     This spreads the excess ionizing photons for a given region.
     Input :
@@ -455,7 +455,7 @@ def Spread_Single(Grid, connected_indices, Grid_of_1, print_time=None):
     Return : the same grid but with the excess ion fraction of the connected region spread around.
 
     Trick : we run distance_transform only for a sub-box centered on the connected region. This is particularly important for high resolution grids, when distance_transform_edt starts to take time (~s, but multilplied by the number of connected regions >1e4, starts taking time...)
-        the size of the subbox is N_subgrid. It is called Sub_Grid.
+            the size of the subbox is N_subgrid. It is called Sub_Grid.
     """
 
     nGrid = len(Grid[0])
@@ -479,10 +479,14 @@ def Spread_Single(Grid, connected_indices, Grid_of_1, print_time=None):
         Delta_max = np.max((Max_X - Min_X + 0, Max_Y - Min_Y + 0, Max_Z - Min_Z + 0))
         Center_X, Center_Y, Center_Z = int((Min_X + Max_X) / 2), int((Min_Y + Max_Y) / 2), int((Min_Z + Max_Z) / 2)
 
-        N_subgrid = 2 * (Delta_max + 2 * Delta_pixel)  ## length of subgrid embedding the connected region
 
-        if N_subgrid % 2 == 1:
-            N_subgrid += 1  ###Nsubgrid needs to be even to make things easier
+        if approx : # Is this flag is True, then you set the subgrid size
+            N_subgrid = 2 * (Delta_max + 2 * Delta_pixel)  ## length of subgrid embedding the connected region
+            if N_subgrid % 2 == 1:
+                N_subgrid += 1  ###Nsubgrid needs to be even to make things easier
+
+        else : # Is approx is False, then set N_subgrid >nGrid, so that we never do the subbox trick (this is to check if the trick gives good results compared to the full)
+            N_subgrid = nGrid + 1
 
         if N_subgrid > nGrid:
             dist_from_boundary = distance_transform_edt(Inverted_grid)

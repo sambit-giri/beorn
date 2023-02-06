@@ -69,8 +69,8 @@ class simple_solver_faster:
 
         rho_xray_ = rho_xray(self.r_grid, Mh_history, dMh_dt, zz, param)
         rho_heat_ = rho_heat(self.r_grid, rho_xray_, zz, param)
-        #R_bubble_ = R_bubble(param,zz,Mh_history).clip(min=0) #cMpc
-        R_bubble_ = R_bubble(param, zz,Mh_history).clip(min=0) #c Mpc
+        #R_bubble_ = R_bubble(param,zz,Mh_history).clip(min=0) # cMpc
+        R_bubble_ = R_bubble(param, zz,Mh_history).clip(min=0) # cMpc
 
 
         T_history = {}

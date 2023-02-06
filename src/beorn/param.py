@@ -99,6 +99,7 @@ def sim_par(): ## used when computing and painting profiles on a grid
         "kbin": 400,                ## either a path to a text files containing kbins edges values or an int (nbr of bins to measure PS)
         "thresh_xHII" :0.1,          ## mean(Tk_neutral) and mean(Tspin) are computed over cells that are below this fraction of ionized hydrogen.
         "thresh_pixel" : None,      ## when spreading the excess ionisation fraction, we treat all the connected regions with less that "thresh_pixel" as a single connected region(to speed up)
+        "approx" : True,            ## when spreading the excess ionisation fraction and running distance_tranform_edt, whether or not to do the subgrid approx.
     }
     return Bunch(par)
 

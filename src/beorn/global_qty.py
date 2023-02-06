@@ -17,6 +17,11 @@ from .bias import bar_density_2h
 from .cross_sections import sigma_HI
 from .python_functions import load_f
 
+
+
+
+
+
 def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
     catalog_dir = param.sim.halo_catalogs
     xHII = []
@@ -338,49 +343,37 @@ def J_alpha_n(zz, sfrd, param):
 
     return J_al
 
-
-def cum_optical_depth(zz,E,param):
+def Thomson_optical_depth(zz,xHII,param):
     """
     Cumulative optical optical depth of array zz.
+    xHII : global ionisation fraction history
     See e.g. Eq. 6 of 1406.4120
     """
+    z0 = zz[0]
+    if z0>0 : ## the integral has to be done starting from z=0
+        low_z = np.arange(0, z0, 0.5)
+        zz = np.concatenate((low_z,zz))
+        xHII = np.concatenate((np.full(len(low_z),xHII[0]), xHII))
 
-    Om = param.cosmo.Om
+    if xHII[0]<1 :
+        print('Warning: reionisation is not complete at the lower redshift available!! The CMB otpical depth calculation will be wrong.')
+
+    from scipy.integrate import cumtrapz, trapz, odeint
     Ob = param.cosmo.Ob
     h0 = param.cosmo.h
 
-    # Energy of a photon observed at (zz[0], E) and emitted at zz
-    if type(E) == np.ndarray:
-        Erest = np.outer(E,(1 + zz)/(1 + zz[0]))
-    else:
-        Erest = E * (1 + zz)/(1 + zz[0])
-
     #hydrogen and helium cross sections
-    sHI   = sigma_HI(Erest)*(h0/cm_per_Mpc)**2 #[Mpc/h]^2
-    #sHeI  = PhotoIonizationCrossSection(Erest, species=1)*(h0/cm_per_Mpc)**2 #[Mpc/h]^2
-
-    sHeII = 0.0
-
-    nb0   = rhoc0*Ob/(m_p*h0)           # [h/Mpc]^3
-
-    #H and He abundances
-    nHI   = nb0 *(1+zz)**3   # [h/Mpc]^3
-    #nHeI  = f_He_bynumb * nb0 *(1+zz)**3
-    #nHeII = 0.0
-
+    sHII   = sigma_T * 1e4 *(h0/cm_per_Mpc)**2 #[Mpc/h]^2
+    nb0   = rhoc0 * Ob/(m_p_in_Msun * h0)           # [h/Mpc]^3
+    #H abundances
+    nHII   = xHII * nb0 * (1+zz)**3   # [h/Mpc]^3
     #proper line element
     dldz = c_km_s*h0/hubble(zz,param)/(1+zz) # [Mpc/h]
-
     #integrate
-    tau_int = dldz * (nHI*sHI) #+ nHeI*sHeI + nHeII*sHeII)
+    tau_int = dldz * (nHII*sHII) #+ nHeI*sHeI + nHeII*sHeII)
+    tau = cumtrapz(tau_int,x=zz,axis=0,initial=0.0)
 
-    if type(E) == np.ndarray:
-        tau = cumtrapz(tau_int,x=zz,axis=1,initial=0.0)
-    else:
-        tau = cumtrapz(tau_int,x=zz,initial=0.0)
-
-    return tau
-
+    return tau[np.where(zz>=z0)]
 
 def mean_J_xray_nu_approx(param,halo_catalog, simple_model,density_normalization = 1,redshifting = 'yes'):
     """
