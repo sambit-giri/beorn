@@ -428,7 +428,7 @@ def Spreading_Excess_Fast(param,Grid_input,plot__=False,pix_thresh=None,):
                 if i % 100 == 0:
                     print('doing region ', i, 'over ', len(large_regions_labels), ' region in total')
             connected_indices = np.where(connected_regions == ir)
-            Grid = Spread_Single(Grid, connected_indices, Grid_of_1 = Grid_of_1, print_time=None)
+            Grid = Spread_Single(param,Grid, connected_indices, Grid_of_1 = Grid_of_1, print_time=None)
 
         if np.any(Grid > 1.):
             print('Some grid pixels are still in excess.')
