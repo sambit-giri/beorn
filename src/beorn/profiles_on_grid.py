@@ -365,7 +365,7 @@ def Spreading_Excess_HR(Grid_Storage):
     return Grid
 
 
-def Spreading_Excess_Fast(Grid_input,plot__=False,pix_thresh=None,approx = True):
+def Spreading_Excess_Fast(param,Grid_input,plot__=False,pix_thresh=None,):
     """
     Last and fastest version of the function.
     Input : Grid_Storage, the cosmological mesh grid (X,X,X) with the ionized fractions, with overlap (pixels where x_ion>1). (X can be 256, 512 ..)
@@ -415,7 +415,7 @@ def Spreading_Excess_Fast(Grid_input,plot__=False,pix_thresh=None,approx = True)
         print('there are ', len(Small_regions_labels),'connected regions with less than ',pix_thresh,' pixels. They contain a fraction ', excess_ion / x_ion_tot_i,'of the total ionizing fraction.')
 
 
-        Grid = Spread_Single(Grid, small_regions, Grid_of_1 = Grid_of_1, print_time=None,approx = approx) # Do the spreading for the small regions
+        Grid = Spread_Single(param,Grid, small_regions, Grid_of_1 = Grid_of_1, print_time=None) # Do the spreading for the small regions
         if np.any(Grid[small_regions] > 1):
             print('small regions not correctly spread')
 
@@ -443,7 +443,7 @@ def Spreading_Excess_Fast(Grid_input,plot__=False,pix_thresh=None,approx = True)
     return Grid
 
 
-def Spread_Single(Grid, connected_indices, Grid_of_1, print_time=None,approx = True):
+def Spread_Single(param,Grid, connected_indices, Grid_of_1, print_time=None):
     """
     This spreads the excess ionizing photons for a given region.
     Input :
@@ -480,7 +480,7 @@ def Spread_Single(Grid, connected_indices, Grid_of_1, print_time=None,approx = T
         Center_X, Center_Y, Center_Z = int((Min_X + Max_X) / 2), int((Min_Y + Max_Y) / 2), int((Min_Z + Max_Z) / 2)
 
 
-        if approx : # Is this flag is True, then you set the subgrid size
+        if param.sim.approx : # Is this flag is True, then you set the subgrid size
             N_subgrid = 2 * (Delta_max + 2 * Delta_pixel)  ## length of subgrid embedding the connected region
             if N_subgrid % 2 == 1:
                 N_subgrid += 1  ###Nsubgrid needs to be even to make things easier
