@@ -823,7 +823,7 @@ def saturated_Tspin(param,ion = None):
         if Grid_dTb.size == 1:
             Grid_dTb = np.full((nGrid, nGrid, nGrid), 1)
 
-        #  delta_XHII = Grid_xHII / np.mean(Grid_xHII) - 1
+        delta_XHII = Grid_xHII / np.mean(Grid_xHII) - 1
         delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
         xHII.append(np.mean(Grid_xHII))
         dTb.append(np.mean(Grid_dTb))
