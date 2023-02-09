@@ -794,8 +794,8 @@ def saturated_Tspin(param,ion = None):
     for filename in os.listdir(catalog_dir):  # count the number of snapshots
         nbr_snap+=1
 
-    #PS_xHII = np.zeros((nbr_snap, len(kbins) - 1))
-    #PS_rho = np.zeros((nbr_snap, len(kbins) - 1))
+    PS_xHII = np.zeros((nbr_snap, len(kbins) - 1))
+    PS_rho = np.zeros((nbr_snap, len(kbins) - 1))
     PS_dTb = np.zeros((nbr_snap, len(kbins) - 1))
 
     zz, xHII, dTb = [], [], []
