@@ -365,7 +365,7 @@ def Spreading_Excess_HR(Grid_Storage):
     return Grid
 
 
-def Spreading_Excess_Fast(param,Grid_input,plot__=False,pix_thresh=None,):
+def Spreading_Excess_Fast(param,Grid_input,plot__=False,pix_thresh=None):
     """
     Last and fastest version of the function.
     Input : Grid_Storage, the cosmological mesh grid (X,X,X) with the ionized fractions, with overlap (pixels where x_ion>1). (X can be 256, 512 ..)

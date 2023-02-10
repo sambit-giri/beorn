@@ -13,6 +13,7 @@ import datetime
 from os.path import exists
 from .astro import f_esc, f_star_Halo
 import warnings
+from .simple_model_faster import Ngdot_ion
 
 def run_excursion_set(param):
     """
@@ -318,6 +319,29 @@ def Nion_(Mh,param):
     return f_star_Halo(param,Mh) * f_esc(param,Mh) * Ob/Om * Mh/h0 / m_p_in_Msun * Nion
 
 
+def Nion_new(Mh,z,param):
+    """
+    Consistent way of computing this for a non flat fesc and fstar (integral of Nion_dot)
+    Number of ionising photons for a given halo. This function is used for the Sem Num method of Majumdar 2014.
+
+    Parameters
+    ----------
+    param: Beorn parameter dictionnary.
+    Mh : Halo Mass in Msol/h
+
+    Returns
+    -------
+    The total number of ionising photons produced by Mh.
+    """
+    zmax = 30
+    zz   = np.arange(z,zmax,0.2)
+    Mh_z = Mh * np.exp(-param.source.alpha_MAR*(zz-z))
+    dNion_dz = Ngdot_ion(param, zz, Mh_z)/((zz + 1) * Hubble(zz, param)  )*sec_per_year
+    return np.trapz(dNion_dz,zz)
+
+
+
+
 def run_Sem_Num(param):
     """
     Run the Sem Num method (Majumdar 2014) to produce ionisation map.
@@ -425,7 +449,9 @@ def Sem_Num(filename,param):
             indices = np.where(Indexing == ih)
             for i, j, k in Pos_Bubbles_Grid[indices]:
                 source_grid[i, j, k] += 1
-            Nion_grid += source_grid * Nion_(Mh_bin_z[ih], param)
+            #Nion_grid += source_grid * Nion_(Mh_bin_z[ih], param)
+            Nion_grid += source_grid * Nion_new(Mh_bin_z[ih], param)
+
 
         print('Ion Fraction should be  ',round(np.sum(Nion_grid)/(rhoc0*Ob/h0/m_p_in_Msun * Lbox**3)/n_rec, 3)) #theoretically expected value (Nion_to/N_H_tot)
 
@@ -441,7 +467,7 @@ def Sem_Num(filename,param):
             Rsmoothing = Rsmoothing * 1.1
             nbr_ion_pix = len(np.where(Nion_grid_smoothed / nbr_H / n_rec >= 1)[0])
             if ii%5 == 0 :
-                print('Rsmoothing is', Rsmoothing, 'there are ', len(np.where(Nion_grid_smoothed / nbr_H / 1.5 >= 1)[0]),'ionisations.', 'mean Nion is')
+                print('Rsmoothing is', Rsmoothing, 'there are ', len(np.where(Nion_gerid_smoothed / nbr_H / 1.5 >= 1)[0]),'ionisations.', 'mean Nion is')
             ii+= 1
 
         ##partial ionisations
