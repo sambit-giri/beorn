@@ -450,7 +450,7 @@ def Sem_Num(filename,param):
             for i, j, k in Pos_Bubbles_Grid[indices]:
                 source_grid[i, j, k] += 1
             #Nion_grid += source_grid * Nion_(Mh_bin_z[ih], param)
-            Nion_grid += source_grid * Nion_new(Mh_bin_z[ih], param)
+            Nion_grid += source_grid * Nion_new(Mh_bin_z[ih],z, param)
 
 
         print('Ion Fraction should be  ',round(np.sum(Nion_grid)/(rhoc0*Ob/h0/m_p_in_Msun * Lbox**3)/n_rec, 3)) #theoretically expected value (Nion_to/N_H_tot)
