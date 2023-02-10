@@ -467,7 +467,7 @@ def Sem_Num(filename,param):
             Rsmoothing = Rsmoothing * 1.1
             nbr_ion_pix = len(np.where(Nion_grid_smoothed / nbr_H / n_rec >= 1)[0])
             if ii%5 == 0 :
-                print('Rsmoothing is', Rsmoothing, 'there are ', len(np.where(Nion_gerid_smoothed / nbr_H / 1.5 >= 1)[0]),'ionisations.', 'mean Nion is')
+                print('Rsmoothing is', Rsmoothing, 'there are ', len(np.where(Nion_grid_smoothed / nbr_H / 1.5 >= 1)[0]),'ionisations.', 'mean Nion is')
             ii+= 1
 
         ##partial ionisations
