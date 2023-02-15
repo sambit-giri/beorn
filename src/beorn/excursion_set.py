@@ -317,7 +317,8 @@ def Nion_(Mh,param):
     """
     Nion, Om, Ob, h0 = param.source.Nion, param.cosmo.Om,param.cosmo.Ob,param.cosmo.h
     if param.source.type == 'Ghara':
-        return  1.33 * 1e43 * Mh/h0 * 1e7*sec_per_year ### multiplying by 10 Myr expressed in seconds
+        print('CAREFUL, Ghara source type is chosen, Nion becomes just a fine tuning multiplicative factor')
+        return param.source.Nion * 1.33 * 1e43 * Mh/h0 * 1e7 * sec_per_year ### multiplying by 10 Myr expressed in seconds
     else :
         return f_star_Halo(param,Mh) * f_esc(param,Mh) * Ob/Om * Mh/h0 / m_p_in_Msun * Nion
 
