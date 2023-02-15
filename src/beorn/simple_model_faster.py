@@ -110,6 +110,8 @@ def Ngdot_ion(param, zz, Mh):
         Ngam_dot_ion = dMh_dt / h0 * f_star_Halo(param, Mh) * Ob / Om * f_esc(param, Mh) * param.source.Nion / sec_per_year / m_H * M_sun
         Ngam_dot_ion[np.where(Mh < param.source.M_min)] = 0
         return Ngam_dot_ion
+    elif param.source.type == 'Ghara':
+        return 1.33 * 1e43 * Mh/h0 # eq (1) from 3D vs 1D RT schemes.
 
     elif param.source.type == 'constant':
         print('constant number of ionising photons chosen. Param.source.Nion becomes Ngam_dot_ion.')
