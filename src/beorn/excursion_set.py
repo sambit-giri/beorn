@@ -449,11 +449,12 @@ def Sem_Num(filename,param):
 
         Nion_grid = np.zeros((nGrid, nGrid, nGrid))  # grid containing the value of Nion (see Majumdar14 eq.3)
         for ih in range(len(Mh_bin_z)):
-            source_grid = np.zeros((nGrid, nGrid, nGrid))
-            indices = np.where(Indexing == ih)
-            for i, j, k in Pos_Bubbles_Grid[indices]:
-                source_grid[i, j, k] += 1
-            Nion_grid += source_grid * Nion_(Mh_bin_z[ih], param)
+            if param.source.M_min<Mh_bin_z[ih]:
+                source_grid = np.zeros((nGrid, nGrid, nGrid))
+                indices = np.where(Indexing == ih)
+                for i, j, k in Pos_Bubbles_Grid[indices]:
+                    source_grid[i, j, k] += 1
+                Nion_grid += source_grid * Nion_(Mh_bin_z[ih], param)
             #Nion_grid += source_grid * Nion_new(Mh_bin_z[ih],z, param)
 
 
