@@ -111,7 +111,10 @@ def Ngdot_ion(param, zz, Mh):
         Ngam_dot_ion[np.where(Mh < param.source.M_min)] = 0
         return Ngam_dot_ion
     elif param.source.type == 'Ghara':
-        return 1.33 * 1e43 * Mh/h0 # eq (1) from 3D vs 1D RT schemes.
+        Mh = zz**0 * Mh # to make sure it has the correct shape
+        Ngam_dot_ion = 1.33 * 1e43 * Mh/h0
+        Ngam_dot_ion[np.where(Mh < param.source.M_min)] = 0
+        return Ngam_dot_ion  # eq (1) from 3D vs 1D RT schemes.
 
     elif param.source.type == 'constant':
         print('constant number of ionising photons chosen. Param.source.Nion becomes Ngam_dot_ion.')
