@@ -111,7 +111,8 @@ def Ngdot_ion(param, zz, Mh):
         Ngam_dot_ion[np.where(Mh < param.source.M_min)] = 0
         return Ngam_dot_ion
     elif param.source.type == 'Ghara':
-        Mh = zz**0 * Mh # to make sure it has the correct shape
+        print('CAREFUL, Ghara source type is chosen, Nion becomes just a fine tuning multiplicative factor')
+        Mh = zz**0 * Mh * param.source.Nion # to make sure it has the correct shape
         Ngam_dot_ion = 1.33 * 1e43 * Mh/h0
         Ngam_dot_ion[np.where(Mh < param.source.M_min)] = 0
         return Ngam_dot_ion  # eq (1) from 3D vs 1D RT schemes.
