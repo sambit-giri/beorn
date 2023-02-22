@@ -432,3 +432,47 @@ def mean_J_xray_nu_approx(param,halo_catalog, simple_model,density_normalization
     mean_Gamma_heat = mean_Gamma_heat / (LBox / (1 + z)) ** 3  ## [pcm**-2.Hz-1.s-1]
 
     return E_range, Jxray_mean, mean_Gamma_heat
+
+
+
+
+
+
+
+
+###########New functions for the simple solver
+
+
+
+def simple_xHII_approx(param,halo_catalog):
+    ## compute mean ion fraction from Rbubble values and halo catalog.  for the simple bubble solver
+    LBox = param.sim.Lbox       # Mpc/h
+    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
+    z_start = param.solver.z
+    model_name = param.sim.model_name
+    H_Masses = halo_catalog['M']
+    z = halo_catalog['z']
+
+
+    grid_model = load_f('./profiles_output/Simple_Faster_' + model_name + '_zi{}.pkl'.format(param.solver.z))
+    ind_z = np.argmin(np.abs(grid_model.z_history - z))
+    zgrid = grid_model.z_history[ind_z]
+    Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1) ## values of Mh at z_start, binned via M_Bin.
+
+    Ionized_vol = 0
+    for i in range(len(M_Bin)):
+        nbr_halos = np.where(Indexing == i)[0].size
+        Mh_ = grid_model.Mh_history[ind_z,i]
+        if nbr_halos > 0 and Mh_>param.source.M_min:
+            radial_grid = grid_model.r_grid_cell/(1+zgrid) #pMpc/h
+            x_HII_profile = np.zeros((len(radial_grid)))
+            x_HII_profile[np.where(radial_grid < grid_model.R_bubble[ind_z,i] / (1 + zgrid))] = 1
+            bubble_volume = np.trapz(4 * np.pi * radial_grid ** 2 * x_HII_profile,radial_grid)
+            Ionized_vol += bubble_volume * nbr_halos  ##physical volume !!
+
+        print(nbr_halos, 'halos in mass bin ', i)
+    x_HII = Ionized_vol / (LBox / (1 + z)) ** 3  # normalize by total physical volume
+    return zgrid, x_HII
+
+
+

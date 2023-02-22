@@ -220,10 +220,11 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
                         renorm = np.trapz(Temp_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / ( LBox / (1 + z)) ** 3 / np.mean(kernel_T)
                         Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices],  kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T) / 1e-7 * renorm
                     # if np.any(kernel_xHII > 0) and np.max( kernel_xHII) > 1e-8 and ion==True:  ## To avoid error from convole_fft (renomalization)
+
                     if np.any(kernel_xHII > 0) and ion == True:
                         renorm = np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / (1 + z)) ** 3 / np.mean(kernel_xHII)
-                        Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7 * renorm
-
+                        extra_ion = put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7 * renorm
+                        Grid_xHII_i += extra_ion
 
                 endtimeprofile = datetime.datetime.now()
                 print(len(indices[0]), 'halos in mass bin ', i, 'took : ', endtimeprofile - starttimeprofile,'to paint profiles')
@@ -818,8 +819,11 @@ def saturated_Tspin(param,ion = None):
 
         Grid_dTb = factor * np.sqrt(1 + zz_) * (1 - Grid_xHII) * (delta_b + 1)
 
-        if Grid_xHII.size == 1:
+
+        if Grid_xHII.size == 1 and zz_>20: ## arbitrary
             Grid_xHII = np.full((nGrid, nGrid, nGrid), 0)  ## to avoid div by zero
+        if Grid_xHII.size == 1 and zz_<20: ## arbitrary
+            Grid_xHII = np.full((nGrid, nGrid, nGrid), 1)  ## to avoid div by zero
         if Grid_dTb.size == 1:
             Grid_dTb = np.full((nGrid, nGrid, nGrid), 1)
 
@@ -829,7 +833,7 @@ def saturated_Tspin(param,ion = None):
         dTb.append(np.mean(Grid_dTb))
         PS_rho[ii] = t2c.power_spectrum.power_spectrum_1d(delta_b, box_dims=Lbox, kbins=kbins)[0]
         PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
-        PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
+        PS_dTb[ii]  = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
 
     z_arr, xHII, dTb = np.array(zz), np.array(xHII), np.array(dTb)
     Dict = {'z': z_arr, 'k': k_bins, 'dTb': dTb, 'xHII': xHII, 'PS_dTb': PS_dTb, 'PS_xHII': PS_xHII, 'PS_rho': PS_rho}
@@ -838,3 +842,4 @@ def saturated_Tspin(param,ion = None):
     print('Computing the power spectra under the assumption Tspin >> Tgamma took : ', start_time - end_time)
     pickle.dump( file=open('./physics/GS_PS_Tspin_saturated_' + str(nGrid) + '_' + model_name + '.pkl', 'wb'), obj=Dict)
 
+    return Grid_dTb

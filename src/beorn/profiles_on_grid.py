@@ -89,7 +89,7 @@ def put_profiles_group(source_pos, profile_kern, nGrid=None):
     source_grid = np.zeros((nGrid, nGrid, nGrid))
 
     for i, j, k in source_pos:
-        source_grid[i, j, k] = 1
+        source_grid[i, j, k] += 1
     out = convolve_fft(source_grid, profile_kern,boundary='wrap',normalize_kernel = False,allow_huge=True)
 
     return out
