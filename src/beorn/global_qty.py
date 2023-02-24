@@ -11,7 +11,7 @@ import pickle
 from .couplings import eps_lyal, S_alpha, rho_alpha, x_coll
 from scipy.interpolate import splrep,splev,interp1d
 from .constants import *
-from .astro import Read_Rockstar, f_star_Halo
+from .astro import Read_Rockstar, f_star_Halo,f_esc
 from .couplings import J_xray_with_redshifting, J_xray_no_redshifting,S_alpha
 from .bias import bar_density_2h
 from .cross_sections import sigma_HI
@@ -347,7 +347,7 @@ def Thomson_optical_depth(zz,xHII,param):
     """
     Cumulative optical optical depth of array zz.
     xHII : global ionisation fraction history
-    See e.g. Eq. 6 of 1406.4120
+    See e.g. Eq. 6 of 1406.4120 or eq. 12 from 2101.01712, or eq. 84 from Planck_2018_results_L06.
     """
     z0 = zz[0]
     if z0>0 : ## the integral has to be done starting from z=0
@@ -356,6 +356,7 @@ def Thomson_optical_depth(zz,xHII,param):
         xHII = np.concatenate((np.full(len(low_z),xHII[0]), xHII))
 
     if xHII[0]<1 :
+        xHII[0] = 1
         print('Warning: reionisation is not complete at the lower redshift available!! The CMB otpical depth calculation will be wrong.')
 
     from scipy.integrate import cumtrapz, trapz, odeint
@@ -373,7 +374,11 @@ def Thomson_optical_depth(zz,xHII,param):
     tau_int = dldz * (nHII*sHII) #+ nHeI*sHeI + nHeII*sHeII)
     tau = cumtrapz(tau_int,x=zz,axis=0,initial=0.0)
 
-    return tau[np.where(zz>=z0)]
+    return zz,tau#[np.where(zz>=z0)]
+
+
+
+
 
 def mean_J_xray_nu_approx(param,halo_catalog, simple_model,density_normalization = 1,redshifting = 'yes'):
     """
@@ -442,7 +447,17 @@ def mean_J_xray_nu_approx(param,halo_catalog, simple_model,density_normalization
 
 ###########New functions for the simple solver
 
-
+def global_xhii_approx(param):
+    catalog_dir = param.sim.halo_catalogs
+    zz = []
+    xHII=[]
+    for ii, filename in enumerate(os.listdir(catalog_dir)):
+        catalog = catalog_dir + filename
+        halo_catalog = load_f(catalog)
+        zz_,xHII_ = simple_xHII_approx(param,halo_catalog)
+        zz.append(zz_)
+        xHII.append(xHII_)
+    return np.array((zz,xHII))
 
 def simple_xHII_approx(param,halo_catalog):
     ## compute mean ion fraction from Rbubble values and halo catalog.  for the simple bubble solver
@@ -473,6 +488,34 @@ def simple_xHII_approx(param,halo_catalog):
         print(nbr_halos, 'halos in mass bin ', i)
     x_HII = Ionized_vol / (LBox / (1 + z)) ** 3  # normalize by total physical volume
     return zgrid, x_HII
+
+
+
+
+
+
+
+def mfp_photons(param,halo_catalog):
+    ####### THIS IS NOT REALLY THE MEAN FREE PATH SINCE BUBBLES OVERLAPP. THIS IS WRONG:
+    ## mean free path of ionizing photons at a given redshift.
+    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
+    z_start = param.solver.z
+    model_name = param.sim.model_name
+    H_Masses = halo_catalog['M'][np.where(halo_catalog['M']>param.source.M_min)]
+    z = halo_catalog['z']
+    print('z is :',z)
+
+
+    grid_model = load_f('./profiles_output/Simple_Faster_' + model_name + '_zi{}.pkl'.format(param.solver.z))
+    ind_z = np.argmin(np.abs(grid_model.z_history - z))
+    Mh_bins = M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))
+    Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (Mh_bins))), axis=1) ## values of Mh at z_start, binned via M_Bin.
+
+    bin_nbr, nbr_halos = np.unique(Indexing, return_counts=True)
+
+    mfp = np.sum(grid_model.R_bubble[ind_z,bin_nbr] * nbr_halos * f_star_Halo(param,Mh_bins[bin_nbr]) * f_esc(param,Mh_bins[bin_nbr]))/np.sum(nbr_halos * f_star_Halo(param,Mh_bins[bin_nbr]) * f_esc(param,Mh_bins[bin_nbr]))
+
+    return mfp #co-Mpc
 
 
 
