@@ -452,9 +452,11 @@ def global_xhii_approx(param):
     zz = []
     xHII=[]
     for ii, filename in enumerate(os.listdir(catalog_dir)):
+
         catalog = catalog_dir + filename
         halo_catalog = load_f(catalog)
         zz_,xHII_ = simple_xHII_approx(param,halo_catalog)
+        print(zz_,'done.')
         zz.append(zz_)
         xHII.append(xHII_)
     return np.array((zz,xHII))
