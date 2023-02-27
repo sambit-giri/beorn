@@ -21,7 +21,7 @@ from .python_functions import load_f, save_f
 
 
 
-def run_solver(param):
+def compute_profiles(param):
     """
     This function computes the Temperature, Lyman-alpha, and ionisation fraction profiles that will then be used to produce the maps.
 
