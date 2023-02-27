@@ -111,6 +111,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=T
             Grid_xHII = np.array([1])
             Grid_Temp = np.array([1])
             Grid_dTb = np.array([0])
+            Grid_xal = np.array([0])
             print('universe is fully inoinzed. Return [1] for the xHII, T and [0] for dTb.')
 
         else:
