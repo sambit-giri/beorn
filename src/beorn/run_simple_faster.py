@@ -316,8 +316,6 @@ def grid_dTb(param,ion = None):
             T_cmb_z = Tcmb0 * (1 + zz_)
             Grid_xHI = 1-Grid_xHII  ### neutral fraction
 
-
-            print('Warning : No Salpha and no xcoll inncluded in the grid_dTb calculation')
             #Grid_Sal = S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)
             Grid_xal = Grid_xal #* Grid_Sal
             coef =  rhoc0 * h0 ** 2 *  Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H
@@ -552,7 +550,7 @@ def compute_PS(param,Tspin = False,RSD = False,ion = None,cross_corr = False):
             PS_T_Ts[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_T, box_dims=Lbox, kbins=kbins)[0]
 
 
-    Dict = {'z':z_arr,'k':k_bins,'PS_xHII': PS_xHII, 'PS_T': PS_T, 'PS_xal': PS_xal, 'PS_dTb': PS_dTb, 'PS_dTb_RSD':PS_dTb_RSD,'PS_T_lyal': PS_T_lyal, 'PS_T_xHII': PS_T_xHII,
+    Dict = {'z':z_arr,'k':k_bins,'PS_xHII': PS_xHII, 'PS_T': PS_T, 'PS_xal': PS_xal, 'PS_dTb': PS_dTb, 'PS_T_lyal': PS_T_lyal, 'PS_T_xHII': PS_T_xHII,
                 'PS_rho': PS_rho, 'PS_rho_xHII': PS_rho_xHII, 'PS_rho_xal': PS_rho_xal, 'PS_rho_T': PS_rho_T, 'PS_lyal_xHII':PS_lyal_xHII}
 
     if Tspin:
