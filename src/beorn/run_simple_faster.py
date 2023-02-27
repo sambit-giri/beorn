@@ -13,7 +13,7 @@ from .cosmo import T_adiab, D
 import os
 from .profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast, put_profiles_group, stacked_lyal_kernel, stacked_T_kernel
 from .couplings import x_coll,rho_alpha, S_alpha
-from .global_qty import  simple_xHII_approx
+from .global_qty import simple_xHII_approx
 from os.path import exists
 from .python_functions import load_f, save_f
 
@@ -89,6 +89,9 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=T
     T_adiab_z = T_adiab(z, param)
     delta_b = load_delta_b(param,filename) # rho/rhomean-1
 
+    Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
+    factor = 27 * Ob * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)
+    coef = rhoc0 * h0 ** 2 * Ob * (1 + z) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H
 
     # quick load to find matching redshift between solver output and simulation snapshot.
     grid_model = load_f(file = './profiles/' + model_name + '_zi{}.pkl'.format(z_start))
@@ -102,7 +105,8 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=T
         Grid_xHII = np.array([0])
         Grid_Temp = T_adiab_z * (1+delta_b)**(2/3)
         Grid_xal = np.array([0])
-        Grid_dTb = np.array([0])
+        Grid_xcoll = x_coll(z=z, Tk=Grid_Temp, xHI=(1 - Grid_xHII), rho_b=(delta_b + 1) * coef)
+        Grid_dTb = factor * np.sqrt(1 + z) * (1 - Tcmb0 * (1 + z) / Grid_Temp) * (1 - Grid_xHII) * (delta_b + 1) * Grid_xcoll / (1 + Grid_xcoll)
 
     else:
         Ionized_vol = simple_xHII_approx(param,halo_catalog)[1]
@@ -158,8 +162,8 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=T
                             renorm = np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / (1 + z)) ** 3 / np.mean(kernel_xHII)
                             #extra_ion = put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7 * renorm
                             extra_ion = put_profiles_group(np.array((XX_indice,YY_indice,ZZ_indice)),nbr_of_halos, kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7 * renorm
-                            bubble_volume = np.trapz(4 * np.pi * radial_grid ** 2 * x_HII_profile, radial_grid)
-                            print('bubble volume is ', len(indices) * bubble_volume,'pMpc, grid volume is', np.sum(extra_ion)* (LBox /nGrid/ (1 + z)) ** 3 )
+                           #bubble_volume = np.trapz(4 * np.pi * radial_grid ** 2 * x_HII_profile, radial_grid)
+                           #print('bubble volume is ', len(indices) * bubble_volume,'pMpc, grid volume is', np.sum(extra_ion)* (LBox /nGrid/ (1 + z)) ** 3 )
                             Grid_xHII_i += extra_ion
                     if lyal:
                         ### We use this stacked_kernel functions to impose periodic boundary conditions when the lyal or T profiles extend outside the box size. Very important for Lyman-a.
@@ -198,9 +202,6 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=T
             Grid_Temp += T_adiab_z * (1+delta_b)**(2/3)
 
             if dTb:
-                Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
-                factor = 27 * Ob * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)
-                coef = rhoc0 * h0 ** 2 * Ob * (1 + z) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H
                 Grid_xcoll = x_coll(z=z, Tk=Grid_Temp, xHI=(1-Grid_xHII), rho_b=(delta_b + 1) * coef)
                 Grid_xtot = Grid_xcoll + Grid_xal/4/np.pi
                 Grid_dTb = factor * np.sqrt(1 + z) * (1 - Tcmb0 * (1 + z) / Grid_Temp) * (1-Grid_xHII) * (delta_b + 1) * Grid_xtot / (1 + Grid_xtot)
