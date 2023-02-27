@@ -325,47 +325,58 @@ def grid_dTb(param,ion = None):
     Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
     factor = 27 * Ob * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)  # factor used in dTb calculation
 
+
+    if param.sim.mpi4py == 'yes':
+        import mpi4py.MPI
+        rank = mpi4py.MPI.COMM_WORLD.Get_rank()
+        size = mpi4py.MPI.COMM_WORLD.Get_size()
+    elif param.sim.mpi4py == 'no':
+        rank = 0
+        size = 1
+    else :
+        print('param.sim.mpi4py should be yes or no')
+
+
+
+
     for ii, filename in enumerate(os.listdir(catalog_dir)):
-        #with open(catalog_dir+filename, "r") as file:
-        #    file.readline()
-        #    a = float(file.readline()[4:])
-        #    zz_ = 1 / a - 1
-        zz_ = load_f(catalog_dir+filename)['z']
-        Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        if ion == 'exc_set':
-            Grid_xHII = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid) +'_' + model_name + '_snap' + filename[4:-5],'rb'))
-        elif ion == 'Sem_Num':
-            Grid_xHII = pickle.load(file=open('./grid_output/xHII_Sem_Num_' + str(nGrid) + '_' + model_name + '_snap' + filename[4:-5],'rb'))
-        else :
-            Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        #Grid_xtot_ov        = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        Grid_xal             = pickle.load(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        if rank == ii % size:
+            zz_ = load_f(catalog_dir+filename)['z']
+            Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+            if ion == 'exc_set':
+                Grid_xHII = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid) +'_' + model_name + '_snap' + filename[4:-5],'rb'))
+            elif ion == 'Sem_Num':
+                Grid_xHII = pickle.load(file=open('./grid_output/xHII_Sem_Num_' + str(nGrid) + '_' + model_name + '_snap' + filename[4:-5],'rb'))
+            else :
+                Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+            #Grid_xtot_ov        = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+            Grid_xal             = pickle.load(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
 
-        dens_field = param.sim.dens_field
-        if dens_field is not None:
-            delta_b = load_delta_b(param, filename)
-        else :
-            delta_b = 0 #rho/rhomean -1
+            dens_field = param.sim.dens_field
+            if dens_field is not None:
+                delta_b = load_delta_b(param, filename)
+            else :
+                delta_b = 0 #rho/rhomean -1
 
-        T_cmb_z = Tcmb0 * (1 + zz_)
-        Grid_xHI = 1-Grid_xHII  ### neutral fraction
+            T_cmb_z = Tcmb0 * (1 + zz_)
+            Grid_xHI = 1-Grid_xHII  ### neutral fraction
 
 
-        print('Warning : No Salpha and no xcoll inncluded in the grid_dTb calculation')
-        #Grid_Sal = S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)
-        Grid_xal = Grid_xal #* Grid_Sal
-        coef =  rhoc0 * h0 ** 2 *  Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H
-        Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI=Grid_xHI, rho_b = (delta_b+1)*coef)
-        Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll + Grid_xal) / Grid_Temp) / (1 + Grid_xcoll + Grid_xal)) ** -1
+            print('Warning : No Salpha and no xcoll inncluded in the grid_dTb calculation')
+            #Grid_Sal = S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)
+            Grid_xal = Grid_xal #* Grid_Sal
+            coef =  rhoc0 * h0 ** 2 *  Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H
+            Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI=Grid_xHI, rho_b = (delta_b+1)*coef)
+            Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll + Grid_xal) / Grid_Temp) / (1 + Grid_xcoll + Grid_xal)) ** -1
 
-        #Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll+Grid_xal) / Grid_Temp) / (1 + Grid_xcoll+Grid_xal)) ** -1
-        Grid_xtot = Grid_xcoll+Grid_xal
+            #Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll+Grid_xal) / Grid_Temp) / (1 + Grid_xcoll+Grid_xal)) ** -1
+            Grid_xtot = Grid_xcoll+Grid_xal
 
-        Grid_dTb = factor * np.sqrt(1+zz_) * (1-T_cmb_z/Grid_Tspin) * Grid_xHI * (delta_b+1)    # this is dTb*(1+deltab)
-        #Grid_dTb = factor * np.sqrt(1 + zz_) * (1 - T_cmb_z / Grid_Tspin) * Grid_xHI * (delta_b+1)  #* Grid_xtot / (1 + Grid_xtot)
-        #pickle.dump(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Tspin)
-        pickle.dump(file=open('./grid_output/dTb_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_dTb)
-        pickle.dump(file=open('./grid_output/xcoll_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xcoll)
+            Grid_dTb = factor * np.sqrt(1+zz_) * (1-T_cmb_z/Grid_Tspin) * Grid_xHI * (delta_b+1)    # this is dTb*(1+deltab)
+            #Grid_dTb = factor * np.sqrt(1 + zz_) * (1 - T_cmb_z / Grid_Tspin) * Grid_xHI * (delta_b+1)  #* Grid_xtot / (1 + Grid_xtot)
+            #pickle.dump(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Tspin)
+            pickle.dump(file=open('./grid_output/dTb_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_dTb)
+            pickle.dump(file=open('./grid_output/xcoll_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xcoll)
 
 
 
