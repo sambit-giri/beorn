@@ -550,9 +550,12 @@ def compute_PS(param,Tspin = False,RSD = False,ion = None,cross_corr = False):
             PS_T_Ts[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_T, box_dims=Lbox, kbins=kbins)[0]
 
 
-    Dict = {'z':z_arr,'k':k_bins,'PS_xHII': PS_xHII, 'PS_T': PS_T, 'PS_xal': PS_xal, 'PS_dTb': PS_dTb, 'PS_T_lyal': PS_T_lyal, 'PS_T_xHII': PS_T_xHII,
-                'PS_rho': PS_rho, 'PS_rho_xHII': PS_rho_xHII, 'PS_rho_xal': PS_rho_xal, 'PS_rho_T': PS_rho_T, 'PS_lyal_xHII':PS_lyal_xHII}
+    Dict = {'z':z_arr,'k':k_bins,'PS_xHII': PS_xHII, 'PS_T': PS_T, 'PS_xal': PS_xal, 'PS_dTb': PS_dTb,  'PS_rho': PS_rho}
 
+    if RSD :
+        Dict['PS_dTb_RSD'] = PS_dTb_RSD
+    if cross_corr:
+        Dict['PS_T_lyal'], Dict['PS_T_xHII'], Dict['PS_rho_xHII'], Dict['PS_rho_xal'], Dict['PS_rho_T'], Dict['PS_lyal_xHII'] = PS_T_lyal,PS_T_xHII,PS_rho_xHII,PS_rho_xal,PS_rho_T, PS_lyal_xHII
     if Tspin:
         Dict['PS_Ts'], Dict['PS_rho_Ts'], Dict['PS_xHII_Ts'],Dict['PS_T_Ts'] = PS_Ts, PS_rho_Ts, PS_Ts_xHII,PS_T_Ts
     end_time = datetime.datetime.now()
