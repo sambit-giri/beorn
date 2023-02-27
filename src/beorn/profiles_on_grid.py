@@ -1,34 +1,13 @@
-
-
-
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import fftconvolve
 import pickle
-from astropy.cosmology import Planck15 as cosmo
-from astropy import constants as const
 from skimage.measure import label
 from scipy.ndimage import distance_transform_edt
 from astropy.convolution import convolve_fft
 import datetime
 from scipy.interpolate import splrep,splev, interp1d
 
-
-
-
-
-def profile_1D_ion(r, c1=2, c2=5):  #
-    """
-    1D ionization profile, sigmoid function. 1 when ionized, 0 when neutral.
-
-    Parameters
-    ----------
-    r  : the distance from the source [Mpc].
-    c1 : shaprness of the profile (sharp = high c1)
-    c2 : the ionization front [Mpc]
-    """
-    out = 1 - 1 / (1 + np.exp(-c1 * (np.abs(r) - c2)))
-    return out
 
 
 ## Creating a profile kernel
@@ -51,47 +30,22 @@ def profile_to_3Dkernel(profile, nGrid, LB):
     kern = profile(rgrid)
     return kern
 
-def put_profiles_Middle(profile_kern, nGrid=None):
-    """
-    Similar to profile_to_3Dkernel.
-    """
-    if nGrid is None: nGrid = profile_kern.shape[0]
-    source_grid = np.zeros((nGrid, nGrid, nGrid))
-    source_grid[int(nGrid / 2), int(nGrid / 2), int(nGrid / 2)] = 1
-
-    out = convolve_fft(source_grid, profile_kern, boundary='wrap', normalize_kernel=False)
-    #out = fftconvolve(source_grid, profile_kern, mode='same')
-    return out
 
 
-def put_profiles_Sources(out, source_pos, nGrid=None):
-    """
-    Takes a kernel out (or similarly the output from put_profiles_Middle), and shifts it to center it at source_pos.
-    Parameters
-    ----------
-    Source_pos : Position of the source in grid units [0,nGrid]**3
-    Out : Meshgrid. The result of fft convolv.
-    """
-
-    if nGrid is None: nGrid = out.shape[0]
-    out_ = np.roll(out, shift=int(nGrid / 2 + source_pos[0]), axis=0)
-    out_ = np.roll(out_, shift=int(nGrid / 2 + source_pos[1]), axis=1)
-    out_ = np.roll(out_, shift=int(nGrid / 2 + source_pos[2]), axis=2)
-
-    return out_
-
-
-def put_profiles_group(source_pos, profile_kern, nGrid=None):
+def put_profiles_group(source_pos,nbr_of_halos, profile_kern, nGrid=None):
     '''
+    source_pos : the position of halo centered in units number of grid cell (0..nGrid-1). shape is (3,N), with N the number of halos. (X,Y,Z)
+    nbr_of_halos : the number of halos in each source_pos (>0), array of size len(source_pos)
+    profile_kern : the profile to put on a grid around each source_pos pixels, multiplied by nbr_of_halos.
+
     Bin halos masses to do this. Then in a given bin all halos are assumed to have the same profile. This speeds up dramatically this step.
     '''
     if nGrid is None: nGrid = profile_kern.shape[0]
     source_grid = np.zeros((nGrid, nGrid, nGrid))
-
-    for i, j, k in source_pos:
-        source_grid[i, j, k] += 1
+    #for i, j, k in source_pos:
+    #    source_grid[i, j, k] += 1
+    source_grid[source_pos[0],source_pos[1],source_pos[2]] = nbr_of_halos
     out = convolve_fft(source_grid, profile_kern,boundary='wrap',normalize_kernel = False,allow_huge=True)
-
     return out
 
 
@@ -179,188 +133,6 @@ def Spreading_Excess(Grid_Storage):
         X_Ion_Tot_f = np.sum(Grid)
         if int(X_Ion_Tot_f) != int(X_Ion_Tot_i):
             print('smtg is wrong when spreading xion_excess.')
-
-    return Grid
-
-def Spreading_Excess_HR(Grid_Storage):
-    """
-    Same function than *Spreading_Excess*, but we add a step to speed up the procedure (relevant when choosing HR Grids (>=256**3)) : for each connected region we run distance_transform only for a subbox centered on the connected region.
-    The size of the sub-boxes is N_subgrid.
-    """
-    Grid = np.copy(Grid_Storage)
-    nGrid = Grid.shape[0]
-    Binary_Grid = np.copy(Grid)
-    Binary_Grid[np.where(Grid < 0.999)] = 0
-    Binary_Grid[np.where(Grid >= 0.999)] = 1
-    connected_regions = label(Binary_Grid)
-
-    Nbr_regions = np.max(connected_regions) + 1
-
-    Grid_of_1 = np.full(((nGrid, nGrid, nGrid)), 1)
-    # When i = 0, the region if the full region outside the bubbles
-    X_Ion_Tot_i = np.sum(Grid)
-    print('initial sum of ionized fraction :', np.sum(Grid))
-    print(Nbr_regions, 'connected regions.')
-
-    if X_Ion_Tot_i > Grid.size:
-        print('Universe is fully ionized.')
-        Grid = 1
-
-    else:
-        for i in range(1, Nbr_regions):
-
-            connected_indices = np.where(connected_regions == i)
-            overlap = np.where(Grid[connected_indices] > 1)[0]
-            initial_excess = np.sum(Grid[connected_indices][overlap] - 1)
-            Grid[connected_indices] = np.where(Grid[connected_indices] > 1, 1, Grid[connected_indices])
-            excess_ion = initial_excess
-
-            if excess_ion > 1e-8:
-
-                Inverted_grid = np.copy(Grid_of_1)
-                Inverted_grid[connected_indices] = 0
-                sum_distributed_xion = 0
-
-                Delta_pixel = int(excess_ion ** (1. / 3) / 2) + 1
-
-                Min_X, Max_X = np.min(connected_indices[0]), np.max(connected_indices[0])
-                Min_Y, Max_Y = np.min(connected_indices[1]), np.max(connected_indices[1])
-                Min_Z, Max_Z = np.min(connected_indices[2]), np.max(connected_indices[2])
-                Delta_max = np.max((Max_X - Min_X + 0, Max_Y - Min_Y + 0, Max_Z - Min_Z + 0))
-                Center_X, Center_Y, Center_Z = int((Min_X + Max_X) / 2), int((Min_Y + Max_Y) / 2), int(
-                    (Min_Z + Max_Z) / 2)
-
-                N_subgrid = 2 * (Delta_max + 2 * Delta_pixel)  ## length of subgrid embedding the connected region
-                if N_subgrid % 2 == 1:
-                    N_subgrid += 1  ###Nsubgrid needs to be even to make things easier
-
-                if N_subgrid > nGrid:
-                    dist_from_boundary = distance_transform_edt(Inverted_grid)
-                    dist_from_boundary[
-                        np.where(dist_from_boundary == 0)] = 2 * nGrid  ### eliminate pixels inside boundary
-                    dist_from_boundary[np.where(
-                        Grid > 1)] = 2 * nGrid  ### eliminate pixels that already have excess x_ion (belonging to another connected regions..)
-                    minimum = np.min(dist_from_boundary)
-                    boundary = np.where(
-                        dist_from_boundary == minimum)  # np.where((dist_from_boundary == minimum )& ( Grid<1))
-
-                    while np.sum(1 - Grid[boundary]) < excess_ion:
-                        sum_distributed_xion += np.sum(1 - Grid[boundary])
-                        excess_ion = excess_ion - np.sum(1 - Grid[boundary])
-                        Grid[boundary] = 1
-                        dist_from_boundary[boundary] = nGrid * 2  ### exclude this layer for next step
-                        minimum = np.min(dist_from_boundary)
-                        boundary = np.where(dist_from_boundary == minimum)  ### new closest region to fill with excess ion
-                        # you go out of the *while* when np.sum(1 - Grid[boundary]) > excess_ion
-                    residual_excess = (1 - Grid[boundary]) * excess_ion / np.sum(1 - Grid[boundary])
-                    Grid[boundary] += residual_excess
-                    sum_distributed_xion += excess_ion
-
-
-
-                else:
-
-                    Sub_Grid = np.full(((N_subgrid, N_subgrid, N_subgrid)), 0)
-
-                    Sub_Grid = Sub_Grid.astype('float64')
-
-                    Sub_Grid[:] = Grid[np.max((Center_X - int(N_subgrid / 2), 0)) - np.max(
-                        (0, Center_X + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                        (nGrid, Center_X + int(N_subgrid / 2) + 0)) + np.max((0, int(N_subgrid / 2) - Center_X)),
-                                  np.max((Center_Y - int(N_subgrid / 2), 0)) - np.max(
-                                      (0, Center_Y + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                                      (nGrid, Center_Y + int(N_subgrid / 2) + 0)) + np.max(
-                                      (0, int(N_subgrid / 2) - Center_Y)),
-                                  np.max((Center_Z - int(N_subgrid / 2), 0)) - np.max(
-                                      (0, Center_Z + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                                      (nGrid, Center_Z + int(N_subgrid / 2) + 0)) + np.max(
-                                      (0, int(N_subgrid / 2) - Center_Z))]
-
-                    while np.sum(1 - Sub_Grid) < excess_ion:  ### for very small regions there might be no room for excess ion.
-                        N_subgrid = N_subgrid + 2
-                        Sub_Grid = np.full(((N_subgrid, N_subgrid, N_subgrid)), 0)
-                        Sub_Grid = Sub_Grid.astype('float64')
-                        Sub_Grid[:] = Grid[np.max((Center_X - int(N_subgrid / 2), 0)) - np.max(
-                            (0, Center_X + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                            (nGrid, Center_X + int(N_subgrid / 2) + 0)) + np.max((0, int(N_subgrid / 2) - Center_X)),
-                                      np.max((Center_Y - int(N_subgrid / 2), 0)) - np.max(
-                                          (0, Center_Y + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                                          (nGrid, Center_Y + int(N_subgrid / 2) + 0)) + np.max(
-                                          (0, int(N_subgrid / 2) - Center_Y)),
-                                      np.max((Center_Z - int(N_subgrid / 2), 0)) - np.max(
-                                          (0, Center_Z + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                                          (nGrid, Center_Z + int(N_subgrid / 2) + 0)) + np.max(
-                                          (0, int(N_subgrid / 2) - Center_Z))]
-
-                    Sub_Inverted_Grid = np.full(((N_subgrid, N_subgrid, N_subgrid)), 1)
-                    Sub_Inverted_Grid = Sub_Inverted_Grid.astype('float64')
-                    Sub_Inverted_Grid[:] = Inverted_grid[np.max((Center_X - int(N_subgrid / 2), 0)) - np.max(
-                        (0, Center_X + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                        (nGrid, Center_X + int(N_subgrid / 2) + 0)) + np.max((0, int(N_subgrid / 2) - Center_X)),
-                                           np.max((Center_Y - int(N_subgrid / 2), 0)) - np.max(
-                                               (0, Center_Y + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                                               (nGrid, Center_Y + int(N_subgrid / 2) + 0)) + np.max(
-                                               (0, int(N_subgrid / 2) - Center_Y)),
-                                           np.max((Center_Z - int(N_subgrid / 2), 0)) - np.max(
-                                               (0, Center_Z + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                                               (nGrid, Center_Z + int(N_subgrid / 2) + 0)) + np.max(
-                                               (0, int(N_subgrid / 2) - Center_Z))]
-
-                    Sub_Grid_Initiale = np.copy(Sub_Grid)
-
-                    dist_from_boundary = distance_transform_edt(Sub_Inverted_Grid)
-                    dist_from_boundary[
-                        np.where(dist_from_boundary == 0)] = 2 * N_subgrid  ### eliminate pixels inside boundary
-                    dist_from_boundary[np.where(
-                        Sub_Grid > 1)] = 2 * N_subgrid  ### eliminate pixels that already have excess x_ion (belonging to another connected regions..)
-                    minimum = np.min(dist_from_boundary)
-                    boundary = np.where(dist_from_boundary == minimum)
-                    #
-
-                    excess_ion_i = excess_ion
-                    while np.sum(1 - Sub_Grid[boundary]) < excess_ion:
-                        sum_distributed_xion += np.sum(1 - Sub_Grid[boundary])
-                        excess_ion = excess_ion - np.sum(1 - Sub_Grid[boundary])
-                        Sub_Grid[boundary] = 1
-                        dist_from_boundary[boundary] = N_subgrid * 2  ### exclude this layer for nex
-                        minimum = np.min(dist_from_boundary)
-                        boundary = np.where(dist_from_boundary == minimum)  ### new closest region to fill
-                    # you go out of the *while* when np.sum(1 - Grid[boundary]) > excess_ion
-
-                    residual_excess = (1 - Sub_Grid[boundary]) * excess_ion / np.sum(1 - Sub_Grid[boundary])
-
-                    Sub_Grid[boundary] = np.add(Sub_Grid[boundary], residual_excess)
-                    sum_distributed_xion += excess_ion
-
-                    Grid[np.max((Center_X - int(N_subgrid / 2), 0)) - np.max(
-                        (0, Center_X + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                        (nGrid, Center_X + int(N_subgrid / 2) + 0)) + np.max((0, int(N_subgrid / 2) - Center_X)),
-                    np.max((Center_Y - int(N_subgrid / 2), 0)) - np.max(
-                        (0, Center_Y + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                        (nGrid, Center_Y + int(N_subgrid / 2) + 0)) + np.max((0, int(N_subgrid / 2) - Center_Y)),
-                    np.max((Center_Z - int(N_subgrid / 2), 0)) - np.max(
-                        (0, Center_Z + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                        (nGrid, Center_Z + int(N_subgrid / 2) + 0)) + np.max(
-                        (0, int(N_subgrid / 2) - Center_Z))] = Sub_Grid[:]
-
-                    if np.any(Sub_Grid[boundary] > 1) or np.any(np.isnan(Sub_Grid[boundary])):
-                        print('2. xion>1')
-
-                    #if round(np.sum(Sub_Grid)) != int(np.sum(Sub_Grid_Initiale) + excess_ion_i):
-                    if round(np.sum(Sub_Grid) / int(np.sum(Sub_Grid_Initiale) + excess_ion_i)) !=1 :
-                    ### just a trick to avoid exiting when half a photon is lost...
-                        print('loosing photons')
-                        exit()
-
-
-        if np.any(Grid > 1):
-            print('3. xion>1.')
-
-        print('final xion sum: ', np.sum(Grid))
-        X_Ion_Tot_f = np.sum(Grid)
-        if int(X_Ion_Tot_f) != int(X_Ion_Tot_i):
-            print('smtg is wrong when spreading xion_excess.')
-
 
     return Grid
 
@@ -691,3 +463,17 @@ def stacked_T_kernel(rr_T, T_array, LBox, nGrid, nGrid_min):
 
 
 
+
+
+def profile_1D_ion(r, c1=2, c2=5):  #
+    """
+    1D ionization profile, sigmoid function. 1 when ionized, 0 when neutral.
+
+    Parameters
+    ----------
+    r  : the distance from the source [Mpc].
+    c1 : shaprness of the profile (sharp = high c1)
+    c2 : the ionization front [Mpc]
+    """
+    out = 1 - 1 / (1 + np.exp(-c1 * (np.abs(r) - c2)))
+    return out

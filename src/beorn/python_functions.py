@@ -669,7 +669,7 @@ def plot_FAST_RT_PS_of_z(k, k_values_fast,path_to_FAST_PS, GS_Beorn, PS_Beorn, c
     """""""""
     ind_k_fast = np.argmin(np.abs(k_values_fast - k))
     FAST_PS_of_z = np.loadtxt(path_to_FAST_PS+'PS_k' + str(ind_k_fast))
-    plt.semilogy(FAST_PS_of_z[:, 0], FAST_PS_of_z[:, 1], ls='-')
+    plt.semilogy(FAST_PS_of_z[:, 0], FAST_PS_of_z[:, 1], ls='-',alpha=0.4,lw=8)
     print('k fast is', k_values_fast[ind_k_fast])
 
     ind_k = np.argmin(np.abs(PS_Beorn['k'] * 0.68 - k))
@@ -682,10 +682,10 @@ def plot_FAST_RT_PS_of_z(k, k_values_fast,path_to_FAST_PS, GS_Beorn, PS_Beorn, c
     dTb_RT = GS_Beorn[option]
     plt.xlabel('k [1/Mpc]',fontsize=14)
     plt.ylabel('$\Delta^{2} = dTb^{2} k^{3}P(k)/(2\pi^{2})$   ', fontsize = 14)
-    plt.semilogy(GS_Beorn['z'], kk ** 3 * dTb_RT ** 2 * PS_dTb_RT / 2 / np.pi ** 2, lw=5, alpha=0.4,label='k=' + str(round(k_values_fast[ind_k_fast], 2))+'Mpc$^{-1}$'+' '+label, color=color)
+    plt.semilogy(GS_Beorn['z'], kk ** 3 * dTb_RT ** 2 * PS_dTb_RT / 2 / np.pi ** 2,label='k=' + str(round(k_values_fast[ind_k_fast], 2))+'Mpc$^{-1}$'+' '+label, color=color,lw=2)
     if RSD :
         dTb_RSD,PS_dTb_RT_RSD = GS_Beorn['dTb_RSD'],PS_Beorn['PS_dTb_RSD'][:, ind_k]
-        plt.semilogy(GS_Beorn['z'], kk ** 3 * dTb_RSD ** 2 * PS_dTb_RT_RSD / 2 / np.pi ** 2, lw=3, alpha=0.5,label='k=' + str(round(k_values_fast[ind_k_fast], 2)), color=color)
+        plt.semilogy(GS_Beorn['z'], kk ** 3 * dTb_RSD ** 2 * PS_dTb_RT_RSD / 2 / np.pi ** 2,label='k=' + str(round(k_values_fast[ind_k_fast], 2)), color=color)
         print(PS_dTb_RT_RSD/PS_dTb_RT)
 
 
@@ -706,7 +706,7 @@ def plot_HM_PS_of_z(k, PS, color, label='',ls='--'):
     plt.xlabel('k [1/Mpc]')
 
 
-def plot_Beorn_PS_of_z(k, GS_Beorn, PS_Beorn,ls='-',lw=1, color='b',RSD = False,label='',qty='dTb'):
+def plot_Beorn_PS_of_z(k, GS_Beorn, PS_Beorn,ls='-',lw=1, color='b',RSD = False,label='',qty='dTb',alpha=1):
     """""""""
     Plot a Beorn Power Spectrum as a function of z. 
     """""""""
@@ -714,15 +714,15 @@ def plot_Beorn_PS_of_z(k, GS_Beorn, PS_Beorn,ls='-',lw=1, color='b',RSD = False,
     print('k RT is', PS_Beorn['k'][ind_k],'Mpc/h')
     kk, PS_dTb_RT = PS_Beorn['k'][ind_k], PS_Beorn['PS_'+qty][:, ind_k]
     dTb_RT = GS_Beorn['dTb']
-    plt.semilogy(GS_Beorn['z'], kk ** 3 * dTb_RT ** 2 * PS_dTb_RT / 2 / np.pi ** 2,ls=ls, lw=lw, alpha=1,label=label , color=color)
+    plt.semilogy(GS_Beorn['z'], kk ** 3 * dTb_RT ** 2 * PS_dTb_RT / 2 / np.pi ** 2,ls=ls, lw=lw, alpha=alpha,label=label , color=color)
     if RSD :
         dTb_RSD,PS_dTb_RT_RSD = GS_Beorn['dTb_RSD'],PS_Beorn['PS_dTb_RSD'][:, ind_k]
-        plt.semilogy(GS_Beorn['z'], kk ** 3 * dTb_RSD ** 2 * PS_dTb_RT_RSD / 2 / np.pi ** 2, lw=1, alpha=1,label=label, color=color)
+        plt.semilogy(GS_Beorn['z'], kk ** 3 * dTb_RSD ** 2 * PS_dTb_RT_RSD / 2 / np.pi ** 2, lw=1, alpha=alpha,label=label, color=color)
         print(PS_dTb_RT_RSD/PS_dTb_RT)
 
 
 
-def plot_PS_fast(z, file, color, ax, Beta=1, label='', qty='xHII',ls='--'):
+def plot_PS_fast(z, file, color, ax, Beta=1, label='', qty='xHII',ls='--',alpha=0.5,lw=3):
     """""""""
     Plot a 21cm FAST power spectrum as a function of k. 
     
@@ -736,14 +736,14 @@ def plot_PS_fast(z, file, color, ax, Beta=1, label='', qty='xHII',ls='--'):
     kk, zz = PS['k'], PS['z']
     ind_z = np.argmin(np.abs(zz - z))
     try:
-        ax.loglog(kk, kk ** 3 * Beta* np.abs(PS['PS_' + qty][ind_z]) / 2 / np.pi ** 2, lw=3, alpha=0.5, label=label, color=color, ls=ls)
+        ax.loglog(kk, kk ** 3 * Beta* np.abs(PS['PS_' + qty][ind_z]) / 2 / np.pi ** 2, lw=lw, alpha=alpha, label=label, color=color, ls=ls)
     except Exception:
         print('Fast :', PS.keys())
     plt.legend()
     plt.xlabel('k [1/Mpc]')
 
 
-def plot_PS_Beorn(z, PS, color, ax, Beta=1, label='', qty='xHII',with_dTb = False,GS=None,ls='-'):
+def plot_PS_Beorn(z, PS, color, ax, Beta=1, label='', qty='xHII',with_dTb = False,GS=None,ls='-',alpha=0.5,lw=3):
     """""""""
     Plot a Beorn power spectrum as a function of k.
     Beta : float, the beta factor in the perturbative expansion of dTb. Set to 1 by default. 
@@ -758,7 +758,7 @@ def plot_PS_Beorn(z, PS, color, ax, Beta=1, label='', qty='xHII',with_dTb = Fals
         print('at z = ', zz[ind_z], 'dTb Boern IS : ', GS['dTb'][ind_z])
 
     try:
-        ax.loglog(kk * 0.68, coef * kk ** 3 * Beta * np.abs(PS['PS_' + qty][ind_z]) / 2 / np.pi ** 2, lw=3, alpha=0.5, label=label,
+        ax.loglog(kk * 0.68, coef * kk ** 3 * Beta * np.abs(PS['PS_' + qty][ind_z]) / 2 / np.pi ** 2, lw=lw, alpha=alpha, label=label,
                   color=color,ls=ls)
     except Exception:
         print('RT:', PS.keys())
@@ -870,3 +870,51 @@ def Beta_21cmFast(z, GS,qty='x_HII'):
         print('Beta_21cmFast qty should be xHII, T, or Tspin')
 
 
+
+
+
+def horizontal_plot_for_lightcone(Beorn_GS,Beorn_PS):
+    """""""""
+    Do a nice horizontal plot to show next to lightcone
+    Smoothes the globaldTb if needed
+
+    Parameters
+    ---------
+    Beorn_GS,Beorn_PS : output of compute_GS and compute_PS from Beorn.
+    
+    """""""""
+
+    from scipy.signal import savgol_filter as savitzky_golay
+
+    plt.figure(figsize=(20, 3))
+    # plt.plot(1/(Beorn_GS['z']+1),Beorn_GS['dTb'],lw=6,alpha=0.5) # to check that savitzky_golay is doing the right thing
+    yhat = savitzky_golay(Beorn_GS['dTb'], 11, 3)
+    plt.plot(1 / (Beorn_GS['z'] + 1), yhat, lw=3, alpha=1)
+    plt.ylabel('$dT_{b}$ (mK)', fontsize=20)
+    plt.xticks(size=15)
+    plt.yticks(size=15)
+    plt.savefig('./dTb_For_Lightcone_Plot.pdf')
+
+
+    plt.figure(figsize=(20, 3))
+    for k in [0.1, 0.5, 1]:
+        ind_k = np.argmin(np.abs(Beorn_PS['k'] * 0.68 - k))
+        label = ''
+
+        # plt.plot(1/(Beorn_GS['z']+1),Beorn_GS['dTb'],lw=6,alpha=0.5)
+        # yhat = savitzky_golay(Beorn_GS['dTb'], 11, 3)
+        # plt.plot(1/(Beorn_GS['z']+1),Beorn_PS['PS_dTb'][],lw=3,alpha=1)
+
+        PS_dTb = Beorn_PS['PS_dTb'][:, ind_k]
+        indices_ = np.where(np.invert(np.isnan(PS_dTb)))
+        kk, PS_dTb_RT = Beorn_PS['k'][ind_k], PS_dTb[indices_]  # 10**savitzky_golay(np.log10(Beorn_PS['PS_dTb'][:, ind_k]), 11, 3)
+        dTb_RT = Beorn_GS['dTb'][indices_]
+        plt.xlabel('k [1/Mpc]', fontsize=14)
+        plt.ylabel('$\Delta^{2} = dTb^{2} k^{3}P(k)/(2\pi^{2})$   ', fontsize=14)
+        plt.semilogy(1 / (Beorn_GS['z'][indices_] + 1), kk ** 3 * dTb_RT ** 2 * PS_dTb_RT / 2 / np.pi ** 2, lw=5, alpha = 0.4, label='k=' + str(round(Beorn_PS['k'][ind_k] * 0.68, 2)) + 'Mpc$^{-1}$' )
+
+        plt.ylabel('$dT_{b}$ (mK)', fontsize=20)
+        plt.xticks(size=15)
+        plt.yticks(size=15)
+    plt.legend(fontsize=15, loc='upper left')
+    plt.savefig('./Model_3_Beorn_P(z)_For_Lightcone_Plot.pdf')

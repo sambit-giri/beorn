@@ -8,16 +8,14 @@ from scipy.interpolate import splrep,splev, interp1d
 import numpy as np
 import pickle
 import datetime
-from .constants import cm_per_Mpc, sec_per_year, M_sun, m_H, rhoc0, Tcmb0
-from .astro import Read_Rockstar
-from .cosmo import T_adiab, Hubble, D
+from .constants import cm_per_Mpc, M_sun, m_H, rhoc0, Tcmb0
+from .cosmo import T_adiab, D
 import os
-import copy
 from .profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast, put_profiles_group, stacked_lyal_kernel, stacked_T_kernel
 from .couplings import x_coll,rho_alpha, S_alpha
-from .global_qty import J_alpha_n, ion_profile
+from .global_qty import  simple_xHII_approx
 from os.path import exists
-from .python_functions import load_f
+from .python_functions import load_f, save_f
 
 
 
@@ -25,122 +23,56 @@ from .python_functions import load_f
 
 def run_solver(param):
     """
-    This function loops over Mbin, initial halo masses and compute the RT equation from zstart to zend for each halo mass. It uses joblib to parallelize.
+    This function computes the Temperature, Lyman-alpha, and ionisation fraction profiles that will then be used to produce the maps.
+
     Parameters
     ----------
     param : dictionnary containing all the input parameters
 
     Returns
     -------
-    Does not return anything. However, it solve the RT equation for a range of halo masses, following their evolution from CDawn to the end of reionization. It stores the profile in a directory called profiles_output.
+    Does not return anything. However, it solve the RT equation for a range of halo masses, following their evolution from cosmic dawn to the end of reionization. It stores the profile in a directory called ./profiles.
     """
     start_time = datetime.datetime.now()
 
-    print('Solving the RT equations with the simple/faster solver..')
-    if not os.path.isdir('./profiles_output'):
-        os.mkdir('./profiles_output')
+    print('Computing Temperature (Tk), Lyman-α and ionisation fraction (xHII) profiles...')
+    if not os.path.isdir('./profiles'):
+        os.mkdir('./profiles')
+
+    if not os.path.isdir('./grid_output'):
+        os.mkdir('./grid_output')
+
+    if not os.path.isdir('./physics'):
+        os.mkdir('./physics')
+
     model_name = param.sim.model_name
-    pkl_name = './profiles_output/Simple_Faster_' + model_name + '_zi{}.pkl'.format(param.solver.z)
+    pkl_name = './profiles/' + model_name + '_zi{}.pkl'.format(param.solver.z)
     grid_model = rad.simple_solver_faster(param)
     grid_model.solve(param)
     pickle.dump(file=open(pkl_name, 'wb'), obj=grid_model)
-    print('... RT equations solved. Profiles stored.')
+    print('...  Profiles and stored in dir ./profiles.')
     print(' ')
     end_time = datetime.datetime.now()
-    print('It took to solve the eq in total:', end_time - start_time)
+    print('It took :', end_time - start_time,'to compute the profiles.')
 
 
-def Ifront(rr,xHII):  # return the ionization front of the profile
-    m = np.argmin(abs(0.5 - xHII))
-    return rr[m]
-
-
-
-def convergence_check(Mhalo, param, Helium, simple_model, simplified_H,save,zz=[10,9.5], conv_criterion=0.05):
+def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=True):
     """
-    Check the convergence of the profiles when varying the time step dt.
-    Choose one of your halo mass bin value, at param.solver.z. This function will pick the corresponding halo mass (exp mar) at zz[0] and compute the profiles down to zz[1].
-
-    """
-
-    z_start = zz[0]
-    param.source.M_halo = Mhalo * np.exp(param.source.alpha_MAR * (param.solver.z-z_start)) # do the check starting at z = 10
-    LBox = param.sim.Lbox  # Mpc/h
-    param.solver.z_end = zz[1]
-    param.solver.z  = z_start
-    model_name = param.sim.model_name +'_convergence_check'
-
-    pkl_name = './profiles_output/conv_check_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, Mhalo)
-    param.table.filename_table = './gamma_tables/gamma_' + model_name + '_Mh_{:.1e}_z{}.pkl'.format(Mhalo,round(z_start, 2))
-
-    print('Solving the RT equations ..')
-    if simple_model:
-        print('--SIMPLE MODEL--')
-        grid_model = rad.simple_solver(param)
-    elif Helium == True:
-        print('--HELIUM--')
-        grid_model = rad.Source_MAR_Helium(param)
-    elif simplified_H == True:
-        print('--For test comparison : hydrogen simplified (no cross-section freq dependence, no Temp in xHII equation)--')
-        grid_model = rad.Source_H_ion_simple(param)
-    else:
-        print('--ONLY HYDROGEN--')
-        grid_model = rad.Source_MAR(param)
-
-    grid_model.solve(param)
-    if save:
-        pickle.dump(file=open('./grid_convrg_chck_Mh_{:.1e}'.format(Mhalo) + '_i_' + str(0) + '.pkl', 'wb'),obj=grid_model)
-
-    param.table.import_table = True
-    zz   = grid_model.z_history[-1]
-    xHII = grid_model.xHII_history[str(round(zz,2))]
-    ion_front = Ifront(grid_model.r_grid_cell,xHII)
-    ion_front_HR = ion_front
-    i = 0
-
-    while np.abs((ion_front - ion_front_HR)) > conv_criterion * ion_front or i == 0:
-        #param.solver.dn = param.solver.dn * 2
-        #param.solver.dn_table = param.solver.dn_table * 2
-        param.solver.time_step = param.solver.time_step / 2
-        if simple_model:
-            grid_model = rad.simple_solver(param)
-        elif Helium == True:
-            grid_model = rad.Source_MAR_Helium(param)
-        elif simplified_H == True:
-            grid_model = rad.Source_H_ion_simple(param)
-        else:
-            grid_model = rad.Source_MAR(param)
-        grid_model.solve(param)
-        ion_front = ion_front_HR
-        ion_front_HR = Ifront(grid_model.r_grid_cell,grid_model.xHII_history[str(round(zz,2))])
-        i+=1
-        if save:
-            pickle.dump(file = open('./grid_convrg_chck_Mh_{:.1e}'.format(Mhalo)+'_i_'+str(i)+'.pkl','wb'),obj = grid_model)
-        print('ion_front : ',round(ion_front,4),'ion_front_HR :',round(ion_front_HR,4),'i :',i)
-
-    #pickle.dump(file=open(pkl_name, 'wb'), obj=grid_model)
-    print('----------')
-    print('... convergence_check ended. i final is', i-1, 'corresponding to dn = ', param.solver.dn, 'dt = ', param.solver.time_step)
-    print('----------')
-    print(' ')
-
-
-
-def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
-    """
-    Paint the Tk, xHII and Lyman alpha profiles on a grid for a single snapshot named filename.
+    Paint the Tk, xHII and Lyman alpha profiles on a grid for a single halo catalog named filename.
 
     Parameters
     ----------
     param : dictionnary containing all the input parameters
-    filename : the name of the snapshot, contained in param.sim.halo_catalogs.
+    filename : the name of the halo catalog, contained in param.sim.halo_catalogs.
+    temp, lyal, ion, dTb : which map to paint.
 
     Returns
     -------
-    Does not return anything. Paints and stores the grids on the directory grid_outputs.
+    Does not return anything. Paints and stores the grids int the directory grid_outputs.
     """
+
     catalog_dir = param.sim.halo_catalogs
-    starttimeprofile = datetime.datetime.now()
+    start_time = datetime.datetime.now()
     z_start = param.solver.z
     model_name = param.sim.model_name
     M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
@@ -152,15 +84,14 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
 
     H_Masses, H_X, H_Y, H_Z = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z']
     z = halo_catalog['z']
-    T_adiab_z = T_adiab(z,param)  # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
 
-
-    ### Add up the adiabatic temperature
-    delta_b = load_delta_b(param,filename) # rho/rhomean-1 (usual delta here..)
+    ### To later add up the adiabatic temperature
+    T_adiab_z = T_adiab(z, param)
+    delta_b = load_delta_b(param,filename) # rho/rhomean-1
 
 
     # quick load to find matching redshift between solver output and simulation snapshot.
-    grid_model = pickle.load(file=open('./profiles_output/Simple_Faster_' + model_name + '_zi{}.pkl'.format(z_start), 'rb'))
+    grid_model = load_f(file = './profiles/' + model_name + '_zi{}.pkl'.format(z_start))
     ind_z = np.argmin(np.abs(grid_model.z_history - z))
     zgrid = grid_model.z_history[ind_z]
     Indexing = np.argmin( np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
@@ -173,10 +104,14 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
         Grid_xal = np.array([0])
 
     else:
+        Ionized_vol = simple_xHII_approx(param,halo_catalog)[1]
+        print('Quick calculation from the profiles predicts xHII = ',round(Ionized_vol,4))
+        if Ionized_vol > 1:
+            Grid_xHII = np.array([1])
+            Grid_Temp = np.array([1])
+            Grid_dTb = np.array([0])
+            print('universe is fully inoinzed. Return [1] for the xHII, T and [0] for dTb.')
 
-        Ionized_vol = 0
-        if Ionized_vol > 2:  ###skip this step, We actually want the full Temperature and xal history
-            print('universe is fully inoinzed. Return [1] for the XHII, T and xtot grid.')
         else:
             Pos_Bubles = np.vstack((H_X, H_Y, H_Z)).T  # Halo positions.
             Pos_Bubbles_Grid = np.array([Pos_Bubles / LBox * nGrid]).astype(int)[0]
@@ -184,89 +119,109 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
             Grid_xHII_i = np.zeros((nGrid, nGrid, nGrid))
             Grid_Temp = np.zeros((nGrid, nGrid, nGrid))
             Grid_xal = np.zeros((nGrid, nGrid, nGrid))
-
             for i in range(len(M_Bin)):
-                indices = np.where(Indexing == i)  ## indices in H_Masses of halos that have an initial mass at z=z_start between M_Bin[i-1] and M_Bin[i]
+                indices = np.where(Indexing == i)[0]  ## indices in H_Masses of halos that have an initial mass at z=z_start between M_Bin[i-1] and M_Bin[i]
                 Mh_ = grid_model.Mh_history[ind_z,i]
 
-                if len(indices[0]) > 0 and Mh_ > param.source.M_min:
+
+                if len(indices) > 0 and Mh_ > param.source.M_min:
                     radial_grid = grid_model.r_grid_cell/(1+zgrid) #pMpc/h
                     x_HII_profile = np.zeros((len(radial_grid)))
                     x_HII_profile[np.where(radial_grid < grid_model.R_bubble[ind_z,i] / (1 + zgrid))] = 1
                     Temp_profile = grid_model.rho_heat[ind_z,:,i]
 
-                    if param.cosmo.Temp_IC == 1: ## adiab IC
-                        T_adiab_z_solver = Temp_profile[-1]
-                        Temp_profile = (Temp_profile-T_adiab_z_solver).clip(min=0)
-
                     r_lyal = np.logspace(-5, 2, 1000, base=10)     ##    physical distance for lyal profile. Never goes further away than 100 pMpc/h (checked)
                     rho_alpha_ = rho_alpha(r_lyal, Mh_, zgrid, param)[0]
                     x_alpha_prof = 1.81e11 * (rho_alpha_) / (1 + zgrid)    # * S_alpha(zgrid, T_extrap, 1 - xHII_extrap)
 
-                    ## here we assume they all have M_bin[i]
-                    profile_xHII = interp1d(radial_grid * (1 + z), x_HII_profile, bounds_error=False, fill_value=(1, 0))
-                    kernel_xHII = profile_to_3Dkernel(profile_xHII, nGrid, LBox)
-                    if not np.any(kernel_xHII > 0): ### if the bubble volume is smaller than the grid size, the kernel will be zero. We deal with that here. Paint central cell with ion fraction value
-                        kernel_xHII[int(nGrid / 2), int(nGrid / 2), int(nGrid / 2)] = np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / nGrid / (1 + z)) ** 3
+                    ### This is the position of halos in base "nGrid". We use this to speed up the code.
+                    ### We count with np.unique the number of halos in each cell. Then we do not have to loop over halo positions in profiles_on_grid/put_profiles_group
+                    base_nGrid_position = Pos_Bubbles_Grid[indices][:, 0] + nGrid * Pos_Bubbles_Grid[indices][:,1] + nGrid ** 2 * Pos_Bubbles_Grid[indices][:, 2]
+                    unique_base_nGrid_poz, nbr_of_halos = np.unique(base_nGrid_position, return_counts=True)
 
-                    kernel_T = stacked_T_kernel(radial_grid * (1 + z), Temp_profile, LBox, nGrid, nGrid_min=4)
+                    ZZ_indice = unique_base_nGrid_poz // (nGrid ** 2)
+                    YY_indice = (unique_base_nGrid_poz - ZZ_indice * nGrid ** 2) // nGrid
+                    XX_indice = (unique_base_nGrid_poz - ZZ_indice * nGrid ** 2 - YY_indice * nGrid)
 
-                    if lyal == True:
+                    ## Every halos in mass bin i are assumed to have mass M_bin[i].
+                    if ion:
+                        profile_xHII = interp1d(radial_grid * (1 + z), x_HII_profile, bounds_error=False, fill_value=(1, 0))
+                        kernel_xHII = profile_to_3Dkernel(profile_xHII, nGrid, LBox)
+                        if not np.any(kernel_xHII > 0):
+                            ### if the bubble volume is smaller than the grid size,we paint central cell with ion fraction value
+                            # kernel_xHII[int(nGrid / 2), int(nGrid / 2), int(nGrid / 2)] = np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / nGrid / (1 + z)) ** 3
+                            Grid_xHII_i[XX_indice,YY_indice,ZZ_indice] += np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / nGrid / (1 + z)) ** 3 * nbr_of_halos
+
+                        else :
+                            renorm = np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / (1 + z)) ** 3 / np.mean(kernel_xHII)
+                            #extra_ion = put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7 * renorm
+                            extra_ion = put_profiles_group(np.array((XX_indice,YY_indice,ZZ_indice)),nbr_of_halos, kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7 * renorm
+                            bubble_volume = np.trapz(4 * np.pi * radial_grid ** 2 * x_HII_profile, radial_grid)
+                            print('bubble volume is ', len(indices) * bubble_volume,'pMpc, grid volume is', np.sum(extra_ion)* (LBox /nGrid/ (1 + z)) ** 3 )
+                            Grid_xHII_i += extra_ion
+                    if lyal:
+                        ### We use this stacked_kernel functions to impose periodic boundary conditions when the lyal or T profiles extend outside the box size. Very important for Lyman-a.
                         kernel_xal = stacked_lyal_kernel(r_lyal * (1 + z), x_alpha_prof, LBox, nGrid, nGrid_min=32)
                         renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean( kernel_xal)
                         if np.any(kernel_xal > 0):
-                            Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum( kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
-                    if (temp == True or temp == 'neutral') and np.any(kernel_T > 0):
-                        renorm = np.trapz(Temp_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / ( LBox / (1 + z)) ** 3 / np.mean(kernel_T)
-                        Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices],  kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T) / 1e-7 * renorm
-                    # if np.any(kernel_xHII > 0) and np.max( kernel_xHII) > 1e-8 and ion==True:  ## To avoid error from convole_fft (renomalization)
+                            #Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum( kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
+                            Grid_xal += put_profiles_group(np.array((XX_indice,YY_indice,ZZ_indice)),nbr_of_halos,kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum( kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
+                    if temp:
+                        kernel_T = stacked_T_kernel(radial_grid * (1 + z), Temp_profile, LBox, nGrid, nGrid_min=4)
+                        renorm = np.trapz(Temp_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / (1 + z)) ** 3 / np.mean(kernel_T)
+                        if np.any(kernel_T > 0):
+                            #Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices],  kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T) / 1e-7 * renorm
+                            Grid_Temp += put_profiles_group(np.array((XX_indice,YY_indice,ZZ_indice)),nbr_of_halos,  kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T) / 1e-7 * renorm
 
-                    if np.any(kernel_xHII > 0) and ion == True:
-                        renorm = np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / (1 + z)) ** 3 / np.mean(kernel_xHII)
-                        extra_ion = put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7 * renorm
-                        Grid_xHII_i += extra_ion
 
-                endtimeprofile = datetime.datetime.now()
-                print(len(indices[0]), 'halos in mass bin ', i, 'took : ', endtimeprofile - starttimeprofile,'to paint profiles')
+                end_time = datetime.datetime.now()
+                print(len(indices), 'halos in mass bin ', i, '. It took : ', end_time - start_time,'to paint the profiles.')
 
             Grid_Storage = np.copy(Grid_xHII_i)
-            # Grid_Temp[np.where(Grid_Temp < T_adiab_z + 0.2)] = T_adiab_z
 
-            if np.sum(Grid_Storage) < nGrid ** 3 and ion == True:
+            if np.sum(Grid_Storage) < nGrid ** 3 and ion:
                 Grid_xHII = Spreading_Excess_Fast(param,Grid_Storage, pix_thresh=param.sim.thresh_pixel)
             else:
                 Grid_xHII = np.array([1])
 
-            endtimespread = datetime.datetime.now()
-            print('It took:', endtimespread - endtimeprofile, 'to spread the excess photons')
+            time_spreadring_end = datetime.datetime.now()
+            print('It took:', time_spreadring_end - end_time, 'to spread the excess photons')
 
             if np.all(Grid_xHII == 0):
                 Grid_xHII = np.array([0])
-
             if np.all(Grid_xHII == 1):
-                print('universe is fully inoinzed. return 1 for Grid_xHII.')  # . Return [1] for the XHII, T and xtot grid.')
+                print('universe is fully inoinzed. Return [1] for Grid_xHII.')
                 Grid_xHII = np.array([1])
 
-        Grid_Temp += T_adiab_z * (1+delta_b)**(2/3)
+            Grid_Temp += T_adiab_z * (1+delta_b)**(2/3)
 
-
-    if param.sim.store_grids == True:
-        if not os.path.isdir('./grid_output'):
-            os.mkdir('./grid_output')
-
-        if temp == True or temp == 'neutral':
-            pickle.dump(file=open('./grid_output/T_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Temp)
-        if ion == True:
-            pickle.dump(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xHII)
-        if lyal == True:
-            pickle.dump(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xal/4/np.pi) #### WARNING : WE DIVIDE BY 4PI TO MATCH HM
+            if dTb:
+                Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
+                factor = 27 * Ob * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)
+                coef = rhoc0 * h0 ** 2 * Ob * (1 + z) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H
+                Grid_xcoll = x_coll(z=z, Tk=Grid_Temp, xHI=(1-Grid_xHII), rho_b=(delta_b + 1) * coef)
+                Grid_xtot = Grid_xcoll + Grid_xal/4/np.pi
+                Grid_dTb = factor * np.sqrt(1 + z) * (1 - Tcmb0 * (1 + z) / Grid_Temp) * (1-Grid_xHII) * (delta_b + 1) * Grid_xtot / (1 + Grid_xtot)
 
 
 
+    if param.sim.store_grids:
+        if temp:
+            save_f(file='./grid_output/T_Grid'   + str(nGrid)  + model_name + '_snap' + filename[4:-5], obj=Grid_Temp)
+        if ion:
+            save_f(file='./grid_output/xHII_Grid'+ str(nGrid)  + model_name + '_snap' + filename[4:-5], obj=Grid_xHII)
+        if lyal:
+            # We divide by 4pi to go to sr**-1 units
+            save_f(file='./grid_output/xal_Grid' + str(nGrid)  + model_name + '_snap' + filename[4:-5], obj=Grid_xal * S_alpha(z, Grid_Temp, 1 - Grid_xHII)/4/np.pi)
+        if dTb:
+            save_f(file='./grid_output/dTb_Grid' + str(nGrid)  + model_name + '_snap' + filename[4:-5], obj=Grid_dTb)
 
 
 
-def paint_profiles(param,temp =True,lyal=True,ion=True):
+
+
+
+def paint_profiles(param,temp =True,lyal=True,ion=True,dTb=True):
     """
     Parameters
     ----------
@@ -277,7 +232,7 @@ def paint_profiles(param,temp =True,lyal=True,ion=True):
     Does not return anything. Loop over all snapshots in param.sim.halo_catalogs and calls paint_profile_single_snap. Uses joblib for parallelisation.
     """
 
-    starttimeprofile = datetime.datetime.now()
+    start_time = datetime.datetime.now()
     LBox = param.sim.Lbox  # Mpc/h
     nGrid = param.sim.Ncell  # number of grid cells
     catalog_dir = param.sim.halo_catalogs
@@ -286,7 +241,7 @@ def paint_profiles(param,temp =True,lyal=True,ion=True):
     if catalog_dir is None :
         print('You should specify param.sim.halo_catalogs. Should be a file containing the rockstar halo catalogs.')
 
-    print('Painting T and ion profiles on a grid with', nGrid,'pixels per dim. Box size is',LBox ,'cMpc/h.')
+    print('Painting profiles on a grid with', nGrid,'pixels per dim. Box size is',LBox ,'cMpc/h.')
 
 
     if param.sim.mpi4py == 'yes':
@@ -300,18 +255,17 @@ def paint_profiles(param,temp =True,lyal=True,ion=True):
         print('param.sim.mpi4py should be yes or no')
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
-
         if rank == ii % size:
             print('Core nbr',rank,'is taking care of snap',filename[4:-5])
-            if exists('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5]):
+            if exists('./grid_output/xHII_Grid' + str(nGrid) + model_name + '_snap' + filename[4:-5]):
                 print('xHII map for snapshot ',filename[4:-5],'already painted. Skiping.')
             else:
                 print('----- Painting for snapshot nbr :', filename[4:-5], '-------')
-                paint_profile_single_snap(filename,param,temp=temp, lyal=lyal, ion=ion)
+                paint_profile_single_snap(filename,param,temp=temp, lyal=lyal, ion=ion, dTb=dTb)
                 print('----- Snapshot nbr :', filename[4:-5], ' is done -------')
  
-    endtime = datetime.datetime.now()
-    print('END. Stored Tgrid, xal grid and xHII grid. It took in total: ',endtime-starttimeprofile,'to paint the grids.')
+    end_time = datetime.datetime.now()
+    print('Finished painting the maps. They are stored in ./grid_output. It took in total: ', end_time-start_time,'to paint the grids.')
     print('  ')
 
 
@@ -337,20 +291,18 @@ def grid_dTb(param,ion = None):
         print('param.sim.mpi4py should be yes or no')
 
 
-
-
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         if rank == ii % size:
             zz_ = load_f(catalog_dir+filename)['z']
-            Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+            Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + model_name + '_snap' + filename[4:-5], 'rb'))
             if ion == 'exc_set':
                 Grid_xHII = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid) +'_' + model_name + '_snap' + filename[4:-5],'rb'))
             elif ion == 'Sem_Num':
                 Grid_xHII = pickle.load(file=open('./grid_output/xHII_Sem_Num_' + str(nGrid) + '_' + model_name + '_snap' + filename[4:-5],'rb'))
             else :
-                Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-            #Grid_xtot_ov        = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-            Grid_xal             = pickle.load(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+                Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid)  + model_name + '_snap' + filename[4:-5], 'rb'))
+            #Grid_xtot_ov        = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + model_name + '_snap' + filename[4:-5], 'rb'))
+            Grid_xal             = pickle.load(file=open('./grid_output/xal_Grid' + str(nGrid)+ model_name + '_snap' + filename[4:-5], 'rb'))
 
             dens_field = param.sim.dens_field
             if dens_field is not None:
@@ -372,15 +324,15 @@ def grid_dTb(param,ion = None):
             #Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll+Grid_xal) / Grid_Temp) / (1 + Grid_xcoll+Grid_xal)) ** -1
             Grid_xtot = Grid_xcoll+Grid_xal
 
-            Grid_dTb = factor * np.sqrt(1+zz_) * (1-T_cmb_z/Grid_Tspin) * Grid_xHI * (delta_b+1)    # this is dTb*(1+deltab)
+            Grid_dTb = factor * np.sqrt(1+zz_) * (1-T_cmb_z/Grid_Tspin) * Grid_xHI * (delta_b+1)
             #Grid_dTb = factor * np.sqrt(1 + zz_) * (1 - T_cmb_z / Grid_Tspin) * Grid_xHI * (delta_b+1)  #* Grid_xtot / (1 + Grid_xtot)
-            #pickle.dump(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Tspin)
-            pickle.dump(file=open('./grid_output/dTb_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_dTb)
-            pickle.dump(file=open('./grid_output/xcoll_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xcoll)
+            #pickle.dump(file=open('./grid_output/Tspin_Grid' + str(nGrid)+ model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Tspin)
+            pickle.dump(file=open('./grid_output/dTb_Grid'+str(nGrid)+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_dTb)
+            pickle.dump(file=open('./grid_output/xcoll_Grid'+str(nGrid)+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xcoll)
 
 
 
-def compute_GS(param,string='',RSD = False,global_approx = False,ion = None):
+def compute_GS(param,string='',RSD = False,ion = None):
     """
     Reads in the grids and compute the global quantities averaged.
     If RSD is True, will add RSD calculation
@@ -395,54 +347,44 @@ def compute_GS(param,string='',RSD = False,global_approx = False,ion = None):
     Tadiab = []
     z_ = []
     Tk = []
-    Tk_neutral = []
     dTb  =[]
     x_HII = []
     x_al = []
-    x_coll=[]
-    T_spin= []
-    beta_a = []
-    beta_T = []
-    beta_r = []
+    #beta_a = []
+    #beta_T = []
+    #beta_r = []
     dTb_RSD = []
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
-        #with open(catalog_dir+filename, "r") as file:
-        #    file.readline()
-        #    a = float(file.readline()[4:])
-        #    zz_ = 1 / a - 1
         zz_ = load_f(catalog_dir+filename)['z']
-        #Grid_Tspin          = pickle.load(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+
         if ion == 'exc_set' :
-            Grid_xHII           = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid) +'_' + model_name + '_snap' + filename[4:-5], 'rb'))
+            Grid_xHII = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid) +'_' + model_name + '_snap' + filename[4:-5], 'rb'))
         elif ion == 'Sem_Num':
             Grid_xHII = pickle.load(file=open('./grid_output/xHII_Sem_Num_' + str(nGrid) + '_' + model_name + '_snap' + filename[4:-5],'rb'))
 
         else :
-            Grid_xHII = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],  'rb'))
-        #Grid_xtot_ov       = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        Grid_xcoll            = pickle.load(file=open('./grid_output/xcoll_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+            Grid_xHII = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid)  + model_name + '_snap' + filename[4:-5],  'rb'))
+        Grid_Temp = pickle.load( file=open('./grid_output/T_Grid' + str(nGrid) + model_name + '_snap' + filename[4:-5], 'rb'))
+        #Grid_xtot_ov       = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid)  + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid)  + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid)+ model_name + '_snap' + filename[4:-5], 'rb'))
 
-
-        xal_  = np.mean(Grid_xal*S_alpha(zz_, Grid_Temp, 1 - Grid_xHII))
-        xcol_ = np.mean(Grid_xcoll)
+        xal_  = np.mean(Grid_xal)
         Tcmb = (1 + zz_) * Tcmb0
 
         z_.append(zz_)
         Tk.append(np.mean(Grid_Temp))
-        Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII < param.sim.thresh_xHII)]))
+        #Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII < param.sim.thresh_xHII)]))
 
         #T_spin.append(np.mean(Grid_Tspin[np.where(Grid_xHII < param.sim.thresh_xHII)]))
         x_HII.append(np.mean(Grid_xHII))
         x_al.append(xal_)
-        x_coll.append(xcol_)
+        #x_coll.append(xcol_)
         dTb.append(np.mean(Grid_dTb))
-        beta_a.append(xal_ / (xcol_ + xal_) / (1 + xcol_ + xal_))
-        beta_T.append(Tcmb /(Tk[ii]-Tcmb))
-        beta_r.append(-x_HII[ii] / (1 - x_HII[ii]))
+        #beta_a.append(xal_ / (xcol_ + xal_) / (1 + xcol_ + xal_))
+        #beta_T.append(Tcmb /(Tk[ii]-Tcmb))
+        #beta_r.append(-x_HII[ii] / (1 - x_HII[ii]))
 
         Tadiab.append(Tcmb0 * (1+zz_)**2/(1+param.cosmo.z_decoupl) )
 
@@ -451,44 +393,28 @@ def compute_GS(param,string='',RSD = False,global_approx = False,ion = None):
         else :
             dTb_RSD.append(0)
 
-    if not os.path.isdir('./physics'):
-        os.mkdir('./physics')
 
-    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, dTb,dTb_RSD, beta_a, beta_T, beta_r = np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab), np.array(dTb),np.array(dTb_RSD), np.array(beta_a), np.array(beta_T), np.array(beta_r)
+    z_, Tk, x_HII, x_al, Tadiab, dTb, dTb_RSD = np.array(z_),np.array(Tk),np.array(x_HII),np.array(x_al),np.array(Tadiab), np.array(dTb),np.array(dTb_RSD)
+
+    matrice = np.array([z_, Tk, x_HII, x_al, Tadiab, dTb, dTb_RSD])
+    z_, Tk, x_HII, x_al, Tadiab, dTb, dTb_RSD = matrice[:, matrice[0].argsort()]  ## sort according to z_
 
     Tgam = (1 + z_) * Tcmb0
-    T_spin = ((1 / Tgam + ( x_al +  x_coll) / Tk_neutral) / (1 +x_al +  x_coll)) ** -1
-
-    matrice = np.array([z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin, dTb, dTb_RSD,beta_a, beta_T, beta_r])
-    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin, dTb, dTb_RSD,beta_a, beta_T, beta_r = matrice[:, matrice[0].argsort()]  ## sort according to z_
-
+    T_spin = ((1 / Tgam +  x_al  / Tk) / (1 +x_al )) ** -1
 
     #### Here we compute Jalpha using HM formula. It is more precise since it accounts for halos at high redshift that mergerd and are not present at low redshift.
-    dTb_GS = factor * np.sqrt(1 + z_) * (1 - Tcmb0 * (1 + z_) / Tk) * (1-x_HII) * (x_coll + x_al) / (1 + x_coll + x_al)### dTb formula similar to coda HM code
-    dTb_GS_Tkneutral = factor * np.sqrt(1 + z_) * (1 - Tcmb0 * (1 + z_) / Tk_neutral) * (1-x_HII) * (x_coll + x_al) / (1 + x_coll + x_al)
-    beta_a = (x_al / (x_coll + x_al) / (1 + x_coll + x_al))
+    #dTb_GS = factor * np.sqrt(1 + z_) * (1 - Tcmb0 * (1 + z_) / Tk) * (1-x_HII) * (x_coll + x_al) / (1 + x_coll + x_al)### dTb formula similar to coda HM code
+    #dTb_GS_Tkneutral = factor * np.sqrt(1 + z_) * (1 - Tcmb0 * (1 + z_) / Tk_neutral) * (1-x_HII) * (x_coll + x_al) / (1 + x_coll + x_al)
+    #beta_a = (x_al / (x_coll + x_al) / (1 + x_coll + x_al))
     #xtot = x_al + x_coll
     #dTb_GS_Tkneutral = dTb_GS_Tkneutral * xtot / (1 + xtot) / ((x_coll + x_al) / (1 + x_coll + x_al))
 
+    Dict = {'Tk':Tk,'x_HII':x_HII,'x_al':x_al,'dTb':dTb,'dTb_RSD':dTb_RSD,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin}
 
-    if global_approx:
-        GS_approx = pickle.load(open('./physics/Glob_approx' + param.sim.model_name + '.pkl', 'rb'))
-        redshifts, sfrd = GS_approx['z'], GS_approx['sfrd']
-        Jal_coda_style = J_alpha_n(redshifts, sfrd, param)
-        xal_coda_style = np.sum(Jal_coda_style[1::], axis=0) * S_alpha(redshifts, Tk, 1 - x_HII) * 1.81e11 / (1 + redshifts)
-        xtot = (xal_coda_style + x_coll)
-        dTb_GS_xal_from_sfrd = dTb_GS * xtot /(1 + xtot) / ( (x_coll + x_al) / (1 + x_coll + x_al))
-        dTb_xal_from_sfrd = dTb * xtot/(1 + xtot) * (x_al+x_coll+1) / (x_al+x_coll) #### to correct for our wrong xalpha.... and use the one computed from the sfrd....
-
-    else :
-        dTb_GS_xal_from_sfrd, dTb_xal_from_sfrd, xal_coda_style = 0, 0, 0
-
-    Dict = {'Tk':Tk,'Tk_neutral_regions':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'dTb_RSD':dTb_RSD,'dTb_GS_Tkneutral':dTb_GS_Tkneutral,
-            'dTb_GS_xal_from_sfrd':dTb_GS_xal_from_sfrd,'dTb_xal_from_sfrd':dTb_xal_from_sfrd,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
-    pickle.dump(file=open('./physics/GS_'+string + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
+    pickle.dump(file=open('./physics/GS_'+string + str(nGrid) + model_name+'.pkl', 'wb'),obj=Dict)
 
 
-def compute_PS(param,Tspin = False,RSD = False,ion = None,cross_corr = True):
+def compute_PS(param,Tspin = False,RSD = False,ion = None,cross_corr = False):
     """
     Parameters
     ----------
@@ -500,8 +426,8 @@ def compute_PS(param,Tspin = False,RSD = False,ion = None,cross_corr = True):
     Computes the power spectra of the desired quantities
 
     """
-    start_time = datetime.datetime.now()
     import tools21cm as t2c
+    start_time = datetime.datetime.now()
     catalog_dir = param.sim.halo_catalogs
     model_name = param.sim.model_name
     nGrid = param.sim.Ncell
@@ -527,13 +453,16 @@ def compute_PS(param,Tspin = False,RSD = False,ion = None,cross_corr = True):
     PS_xal = np.zeros((nbr_snap,len(kbins)-1))
     PS_rho = np.zeros((nbr_snap,len(kbins)-1))
     PS_dTb = np.zeros((nbr_snap,len(kbins)-1))
-    PS_dTb_RSD = np.zeros((nbr_snap,len(kbins)-1))
-    PS_T_lyal = np.zeros((nbr_snap,len(kbins)-1))
-    PS_T_xHII  = np.zeros((nbr_snap,len(kbins)-1))
-    PS_rho_xHII = np.zeros((nbr_snap,len(kbins)-1))
-    PS_rho_xal = np.zeros((nbr_snap,len(kbins)-1))
-    PS_rho_T   = np.zeros((nbr_snap,len(kbins)-1))
-    PS_lyal_xHII = np.zeros((nbr_snap,len(kbins)-1))
+    if RSD :
+        PS_dTb_RSD = np.zeros((nbr_snap,len(kbins)-1))
+
+    if cross_corr:
+        PS_T_lyal = np.zeros((nbr_snap,len(kbins)-1))
+        PS_T_xHII  = np.zeros((nbr_snap,len(kbins)-1))
+        PS_rho_xHII = np.zeros((nbr_snap,len(kbins)-1))
+        PS_rho_xal = np.zeros((nbr_snap,len(kbins)-1))
+        PS_rho_T   = np.zeros((nbr_snap,len(kbins)-1))
+        PS_lyal_xHII = np.zeros((nbr_snap,len(kbins)-1))
 
 
     if Tspin :
@@ -545,21 +474,20 @@ def compute_PS(param,Tspin = False,RSD = False,ion = None,cross_corr = True):
 
     for filename in os.listdir(catalog_dir):
         zz_ = load_f(catalog_dir+filename)['z']
-        Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        if ion == 'exc_set' :
+        Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + model_name + '_snap' + filename[4:-5], 'rb'))
+        if ion == 'exc_set':
             Grid_xHII           = pickle.load(file=open('./grid_output/xHII_exc_set_' + str(nGrid) +'_' + model_name + '_snap' + filename[4:-5], 'rb'))
         elif ion == 'Sem_Num':
             Grid_xHII = pickle.load(file=open('./grid_output/xHII_Sem_Num_' + str(nGrid) + '_' + model_name + '_snap' + filename[4:-5],'rb'))
-
         else :
-            Grid_xHII = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],  'rb'))
-        Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+            Grid_xHII = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid) + model_name + '_snap' + filename[4:-5],  'rb'))
+        Grid_dTb  = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_xal  = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + model_name + '_snap' + filename[4:-5], 'rb'))
 
         if Tspin:
             T_cmb_z = Tcmb0*(1+zz_)
-            Grid_xcoll = pickle.load(file=open('./grid_output/xcoll_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-            Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll + Grid_xal) / Grid_Temp) / (1 + Grid_xcoll + Grid_xal)) ** -1
+            #Grid_xcoll = pickle.load(file=open('./grid_output/xcoll_Grid' + str(nGrid) + model_name + '_snap' + filename[4:-5], 'rb'))
+            Grid_Tspin = ((1 / T_cmb_z + Grid_xal / Grid_Temp) / (1  + Grid_xal)) ** -1
 
         if Grid_Temp.size == 1: ## to avoid error when measuring power spectrum
             Grid_Temp = np.full((nGrid, nGrid, nGrid),1)
@@ -571,11 +499,10 @@ def compute_PS(param,Tspin = False,RSD = False,ion = None,cross_corr = True):
             Grid_xal = np.full((nGrid, nGrid, nGrid), 1)
 
 
-
-        delta_XHII = Grid_xHII / np.mean(Grid_xHII) - 1
-        delta_T   = Grid_Temp / np.mean(Grid_Temp) - 1
-        delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
-        delta_x_al = Grid_xal / np.mean(Grid_xal) - 1
+        delta_XHII = Grid_xHII/ np.mean(Grid_xHII) - 1
+        delta_T    = Grid_Temp/ np.mean(Grid_Temp) - 1
+        delta_dTb  = Grid_dTb / np.mean(Grid_dTb)  - 1
+        delta_x_al = Grid_xal / np.mean(Grid_xal)  - 1
 
         ii = np.where(z_arr == zz_)
 
@@ -592,10 +519,10 @@ def compute_PS(param,Tspin = False,RSD = False,ion = None,cross_corr = True):
                 PS_rho_T[ii]   = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_rho, box_dims=Lbox, kbins=kbins)[0]
             if Tspin :
                 PS_rho_Ts[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_rho, box_dims=Lbox, kbins=kbins)[0]
-
         else:
-            delta_rho = 0,0  #  rho/rhomean-1
+            delta_rho = 0,0  #rho/rhomean-1
             print('no density field provided.')
+
 
         if RSD:
             Grid_dTb_RSD = Grid_dTb / RSD_field(param, delta_rho, zz_)
@@ -630,76 +557,7 @@ def compute_PS(param,Tspin = False,RSD = False,ion = None,cross_corr = True):
     end_time = datetime.datetime.now()
 
     print('Computing the power spectra took : ', start_time -end_time)
-    pickle.dump(file=open('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + '.pkl', 'wb'), obj=Dict)
-
-
-def paint_ly_alpha_single_snap(filename, param, epsilon_factor=10):
-    """
-    Paint the  Lyman alpha profiles on a grid for a single snapshot named filename.
-
-    Parameters
-    ----------
-    param : dictionnary containing all the input parameters
-    filename : the name of the snapshot, contained in param.sim.halo_catalogs.
-
-    Returns
-    -------
-    Does not return anything. Paints and stores the grids on the directory grid_outputs.
-    """
-    catalog_dir = param.sim.halo_catalogs
-    z_start = param.solver.z
-    model_name = param.sim.model_name
-    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
-
-    LBox = param.sim.Lbox  # Mpc/h
-    nGrid = param.sim.Ncell  # number of grid cells
-    catalog = catalog_dir + filename
-    #halo_catalog = Read_Rockstar(catalog, Nmin=param.sim.Nh_part_min)
-    halo_catalog = load_f(catalog)
-    H_Masses, H_X, H_Y, H_Z = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z']
-    z = halo_catalog['z']
-
-    # quick load to find matching redshift between solver output and simulation snapshot.
-    grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
-    ind_z = np.argmin(np.abs(grid_model.z_history - z))
-    zgrid = grid_model.z_history[ind_z]
-
-    ##screening for xal
-    epsilon = LBox / nGrid / epsilon_factor
-
-    Indexing = np.argmin( np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
-    print('There are', H_Masses.size, 'halos at z=', z, )
-
-    if H_Masses.size == 0:
-        print('There aint no sources')
-        Grid_xal = np.array([0])
-
-    else:
-        Pos_Bubles = np.vstack((H_X, H_Y, H_Z)).T  # Halo positions.
-        Pos_Bubbles_Grid = np.array([Pos_Bubles / LBox * nGrid]).astype(int)[0]
-        Pos_Bubbles_Grid[np.where(Pos_Bubbles_Grid == nGrid)] = nGrid - 1  # you don't want Pos_Bubbles_Grid==nGrid
-        Grid_xal = np.zeros((nGrid, nGrid, nGrid))
-
-        for i in range(len(M_Bin)):
-            indices = np.where(Indexing == i)  ## indices in H_Masses of halos that have an initial mass at z=z_start between M_Bin[i-1] and M_Bin[i]
-            if len(indices[0]) > 0:
-                r_lyal = np.logspace(-6, 2, 4000, base=10)  ## physical distance for lyal profile
-                Mhalo_z = M_Bin[i] * np.exp(-param.source.alpha_MAR * (z - z_start))
-                rho_alpha_ = rho_alpha(r_lyal, Mhalo_z, z, param)[0]
-                x_alpha_prof = 1.81e11 * (rho_alpha_) / (1 + zgrid)  # S_alpha(zgrid, T_extrap, 1 - xHII_extrap)
-                profile_xal = interp1d(r_lyal * (1 + z), x_alpha_prof * (r_lyal * (1 + z) / (r_lyal * (1 + z) + epsilon)) ** 2, bounds_error=False, fill_value=0)  ##screening
-                kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
-                renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean( kernel_xal)
-                if not np.sum(kernel_xal) < 1e-8 :
-                    Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal) * renorm
-
-    pickle.dump(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xal / 4 / np.pi)  #### WARNING : WE DIVIDE BY 4PI TO MATCH HM
-
-
-
-
-
-
+    pickle.dump(file=open('./physics/PS_' + str(nGrid) + model_name + '.pkl', 'wb'), obj=Dict)
 
 
 
@@ -826,7 +684,7 @@ def saturated_Tspin(param,ion = None):
         elif ion == 'Sem_Num':
             Grid_xHII = pickle.load(file=open('./grid_output/xHII_Sem_Num_' + str(nGrid) + '_' + model_name + '_snap' + filename[4:-5],'rb'))
         else:
-            Grid_xHII = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5],'rb'))
+            Grid_xHII = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + model_name + '_snap' + filename[4:-5],'rb'))
 
         Grid_dTb = factor * np.sqrt(1 + zz_) * (1 - Grid_xHII) * (delta_b + 1)
 

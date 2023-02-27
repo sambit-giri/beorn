@@ -35,9 +35,8 @@ class simple_solver_faster:
         self.z_initial = param.solver.z  # starting redshift
         if self.z_initial < 35:
             print('WARNING : z_start (param.solver.z) should be larger than 35 when simple model is chosen.  ')
-        self.z_end = param.solver.z_end  # starting redshift
+        self.z_end = param.solver.z_end  # ending redshift
         self.alpha = param.source.alpha_MAR
-        self.M_halo = param.source.M_halo #Msol/h
         rmin = 1e-2
         rmax = 600
         Nr = 200
@@ -67,26 +66,23 @@ class simple_solver_faster:
         elif param.source.MAR == 'EPS':
             Mh_history,dMh_dt = mass_accretion_EPS(self.z_arr, self.M_Bin,param)
 
-        rho_xray_ = rho_xray(self.r_grid, Mh_history, dMh_dt, zz, param)
-        rho_heat_ = rho_heat(self.r_grid, rho_xray_, zz, param)
-        #R_bubble_ = R_bubble(param,zz,Mh_history).clip(min=0) # cMpc
-        R_bubble_ = R_bubble(param, zz,Mh_history).clip(min=0) # cMpc
+        rho_xray_ = rho_xray(param,self.r_grid, Mh_history, dMh_dt, zz)
+        rho_heat_ = rho_heat(param,self.r_grid, rho_xray_, zz)
+        R_bubble_ = R_bubble(param, zz,Mh_history).clip(min=0) # cMpc/h
 
 
-        T_history = {}
-        rhox_history = {}
-        for i in range(len(zz)):
-            T_history[str(zz[i])] = rho_heat_[i]
-            rhox_history[str(zz[i])] =rho_xray_[i]
+       # T_history = {}
+       # rhox_history = {}
+       # for i in range(len(zz)):
+       #     T_history[str(zz[i])] = rho_heat_[i]
+       #     rhox_history[str(zz[i])] =rho_xray_[i]
 
-        self.rhox_history = rhox_history
+        #self.rhox_history = rhox_history
         self.Mh_history = Mh_history
         self.z_history = zz
         self.R_bubble = R_bubble_     # cMpc/h (zz,M)
-        #self.T_profile = rho_heat_    # Kelvins
-        self.T_history = T_history    # Kelvins
-        self.T_neutral_hist = T_history    # Kelvins
-        self.rho_heat = rho_heat_  #shape (z,r,M)
+        #self.T_history = T_history    # Kelvins
+        self.rho_heat = rho_heat_           #shape (z,r,M)
         self.r_grid_cell = self.r_grid
         self.Ngdot_ion = Ngdot_ion(param, zz[:,None], Mh_history)
 
@@ -129,6 +125,17 @@ def Ngdot_ion(param, zz, Mh):
 
 
 def dMh_dt_EXP(param,Mh,z):
+    """
+    Parameters
+    ----------
+    param : dictionary containing all the input parameters
+    Mh : arr. Halo masss
+    z  : arr of shape (Mh), redshifts
+
+    Returns
+    ----------
+    Halo mass accretion rate, i.e. time derivative of halo mass (dMh/dt in [Msol/h/yr])
+    """
     return param.source.alpha_MAR * Mh * (z + 1) * Hubble(z, param)
 
 
@@ -136,14 +143,15 @@ def R_bubble(param, zz, M_accr):
     """
     Parameters
     ----------
-    param : dictionnary containing all the input parameters
-    M_accr : halo mass history as a function of redshift zz_arr
+    param : dictionary containing all the input parameters
+    M_accr : halo mass history as a function of redshift zz. 2d arr of shape [zz, M_bin]
+    zz : redshift. Matters for the mass accretion rate in Ngdot_ion!
 
     Returns
     ----------
-    comoving size [cMpc/h] of the ionized bubble around the source, as a function of time. Array of size len(zz_arr)
-    zz : redshift. Matters for the mass accretion rate!!
+    Comoving size [cMpc/h] of the ionized bubble around the source, as a function of time. 2d array of size (zz,M_bin)
     """
+
     Ngam_dot = Ngdot_ion(param, zz[:,None], M_accr)  # s-1
     Ob, Om, h0 = param.cosmo.Ob, param.cosmo.Om, param.cosmo.h
     nb0 = (Ob * rhoc0) / (m_p_in_Msun * h0)  # comoving nbr density of baryons [Mpc/h]**-3
@@ -158,7 +166,6 @@ def R_bubble(param, zz, M_accr):
     #source = lambda V, t: Ngam_interp(t) / nb0 - alpha_HII(1e4) * C / cm_per_Mpc ** 3 * h0 ** 3 * nb0_interp(t) * V  # eq 65 from barkana and loeb
     source = lambda V, a: km_per_Mpc / (hubble(1 / a - 1, param) * a) * (Ngam_interp(a) / nb0 - alpha_HII(1e4) * C / cm_per_Mpc ** 3 * h0 ** 3 * nb0_interp(a) * V)  # eq 65 from barkana and loeb
 
-#bubble_size = odeint(source, 1e-20, time) ## initial condition 1e-20. We get nan if put to zero.
     bubble_vol = odeint(source, np.zeros(len(M_accr[0])), aa)
 
     return (3*bubble_vol/4/np.pi)**(1/3)
@@ -166,13 +173,19 @@ def R_bubble(param, zz, M_accr):
 
 
 
-def rho_xray(rr, M_accr, dMdt_accr, zz, param):
+def rho_xray(param,rr, M_accr, dMdt_accr, zz):
     """
-    X-ray profile
-    of shape rho(zz,rr,MM) (M_accr, dMdt_accr all have same dimension (zz,Masses))
-    zz is in decreasing order
-    M_accr is function of zz and hence increases
-    rr is comoving distance
+    Parameters
+    ----------
+    param : dictionary containing all the input parameters
+    M_accr :  function of zz and hence should increase. 2d array of shape (zz,M_bin)
+    dMdt_accr :  Time derivative of halo mass (MAR). 2d array of shape (zz,M_bin)
+    zz : redshift in decreasing order.
+    rr : comoving distance from source center [cMpc/h]
+
+    Returns
+    ----------
+    X-ray profile, i.e. energy injected as heat by X-rays, in [eV/s], and of shape (zz,rr,M_bin) (M_accr, dMdt_accr all have same dimension (zz,M_bin))
     """
 
     Om = param.cosmo.Om
@@ -240,13 +253,22 @@ def rho_xray(rr, M_accr, dMdt_accr, zz, param):
 
 
 
-def rho_heat(rr, rho_xray, zz, param):
+def rho_heat(param,rr, rho_xray, zz):
     """
-    Going from heating to temperatue.
-    Units : Kelvin
-    Shape : (zz,rr)
+    Parameters
+    ----------
+    param : dictionary containing all the input parameters
+    rho_xray :  output of rho_xray.
+    zz : redshift in decreasing order.
+    rr : comoving distance from source center [cMpc/h]
 
+    Returns
+    ----------
+    Solve the temperature equation, to go from a heating rate to a Temperature in [K].
+    Array of shape (zz,rr, M_bin)
+    We assume 0K initial conditions (background adiabatic temperature is added afterward.)
     """
+
     # decoupling redshift as ic
     z0 = param.cosmo.z_decoupl
     zz = np.concatenate((np.array([z0]),zz))

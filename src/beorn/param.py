@@ -14,30 +14,21 @@ class Bunch(object):
 
 def source_par():
     par = {
-        "M_halo": 1e6,                   # Msol/h
         "alpha_MAR" : 0.79,              # coefficient for exponential MAR
         "MAR" : 'EXP',                   # MAR model. Can be EXP or EPS.
         "type": 'SED',                   # source type. Can be 'Galaxies' or 'Miniqsos' or SED
 
-        "E_min_sed_ion": 13.6,           # minimum energy of normalization of ionizing photons in eV
-        "E_max_sed_ion": 1000,           # minimum energy of normalization of ionizing photons in eV
-
-
         "E_min_sed_xray": 500,           # minimum energy of normalization of xrays in eV
-        "E_max_sed_xray": 8000,          # minimum energy of normalization of xrays in eV
+        "E_max_sed_xray": 2000,          # minimum energy of normalization of xrays in eV
 
-        "E_min_xray": 100,
-        "E_max_xray": 10000,             # min and max energy that define what we call xrays.
+        "E_min_xray": 500,
+        "E_max_xray": 2000,             # min and max energy that define what we call xrays.
 
-        "alS_ion": 1.5,                  ##PL sed ion part
         "alS_xray": 2.5,                 ##PL sed Xray part N ~ nu**-alS [nbr of photons/s/Hz]
         "cX":  3.4e40,                   # Xray normalization [(erg/s) * (yr/Msun)] (astro-ph/0607234 eq22)
 
         "N_al"    : 9690,                # nbr of lyal photons per baryons in stars
         "alS_lyal": 1.001,               ## PL for lyal
-
-        "xray_in_ion" : 1,
-        "ion_in_xray" : 1,               ##whether or not to include xray in ionising gamma tables calculation and reciprocally
 
         "M_min" : 1e5,                   # Minimum mass of star forming halo. Mdark in HM
         'f_st': 0.05,
@@ -53,13 +44,6 @@ def source_par():
         "Mp_esc": 1e10,
         "pl_esc": 0.0,
 
-        ## params for old source parametrization, galaxy or Miniqso.
-        "E_0"  : 10.4,
-        "E_upp": 10000,
-        "T_gal": 5e4,       # galaxy Temperature. We let it to 50 000K for now.
-        "M_miniqso": 1e4,   # miniquasar mass in the case of miniqsos (Msol)
-        "alpha": 1,         # SED of the miniqso spectra
-
     }
 
     return Bunch(par)
@@ -68,14 +52,7 @@ def solver_par():
     par = {
         "z" : 25,                ## Starting redshift
         "z_end" : 6,             ## Only for MAR. Redshift where to stop the solver
-        "r_end" : 3,             ## physical Mpc/h
-        "dn"  : 100,             ## number of radial sample points to initialize the RT solver (then adaptive refinement goes on)
-        "dn_table" : 100,        ## number of radial sample points for the table
-        "method": 'bruteforce',  ## "sol" for using the clean solver and "bruteforce" to just solve the equation by discretizing independently nH and T
-        "time_step" : 0.1,       ## time step for the solver, in Myr.
-        "full_output" : False,   ## if True, then will store dTb, Tspin, and nHI profiles. If False, only Temperature and ionised fractions.
-        "Nz": 500, ##only used in simpler_faster
-
+        "Nz": 500,               ##only used in simpler_faster
     }
     return Bunch(par)
 
@@ -118,7 +95,6 @@ def cosmo_par():
     "clumping" : 1,         # to rescale the background density. set to 1 to get the normal 2h profile term.
     "profile" : 0,          # 0 for constant background density, 1 for 2h term profile
     "z_decoupl" : 135,      # redshift at which the gas decouples from CMB and starts cooling adiabatically according to Tcmb0*(1+z)**2/(1+zdecoupl)
-    "Temp_IC" : 1,          # Initial conditions to compute the temperature profiles. 1 --> for adiabatic IC, 1e-50 or less --> for zero K IC.
     }
     return Bunch(par)
 
@@ -134,25 +110,15 @@ def excursion_set_par():
         "delta_c" : 1.686,            # critical density
         "A" : 0.322,                  # A = 0.322 except 0.5 for PS Spherical collapse (to double check)
         "R_max": 40,                 # Mpc/h. The scale at which we start the excursion set.
-        "n_rec": 1.5,                # mean number of recombination per baryon.
+        "n_rec": 3,                # mean number of recombination per baryon.
         "stepping":1,                # When doing the exc set, we smooth the field starting from large scale down to the pixel size. This parameters controls how fast you decrease the smoothing scale, in pixel units.
      }
-    return Bunch(par)
-
-
-
-def table_par():
-    par = {
-        "import_table": False,              # Whether or not to import an external Gamma table
-        "filename_table": None,             # Filename of the table to import OR filename to write in
-        }
     return Bunch(par)
 
 
 def par():
     par = Bunch({
         "source": source_par(),
-        "table": table_par(),
         "solver": solver_par(),
         "cosmo" : cosmo_par(),
         "sim" : sim_par(),

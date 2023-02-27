@@ -192,7 +192,7 @@ def sfrd_approx(param,halo_catalog):
     print('There are', H_Masses.size, 'halos at z=', z, )
 
     # quick load to find matching redshift between solver output and simulation snapshot.
-    grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
+    grid_model = pickle.load(file=open('./profiles/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
     ind_z = np.argmin(np.abs(grid_model.z_history - z))
     zgrid = grid_model.z_history[ind_z]
     Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1) ## values of Mh at z_start, binned via M_Bin.
@@ -461,7 +461,8 @@ def global_xhii_approx(param):
         xHII.append(xHII_)
     return np.array((zz,xHII))
 
-def simple_xHII_approx(param,halo_catalog):
+
+def simple_xHII_approx(param,halo_catalog,print=False):
     ## compute mean ion fraction from Rbubble values and halo catalog.  for the simple bubble solver
     LBox = param.sim.Lbox       # Mpc/h
     M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
@@ -470,8 +471,7 @@ def simple_xHII_approx(param,halo_catalog):
     H_Masses = halo_catalog['M']
     z = halo_catalog['z']
 
-
-    grid_model = load_f('./profiles_output/Simple_Faster_' + model_name + '_zi{}.pkl'.format(param.solver.z))
+    grid_model = load_f('./profiles/' + model_name + '_zi{}.pkl'.format(param.solver.z))
     ind_z = np.argmin(np.abs(grid_model.z_history - z))
     zgrid = grid_model.z_history[ind_z]
     Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1) ## values of Mh at z_start, binned via M_Bin.
@@ -486,8 +486,8 @@ def simple_xHII_approx(param,halo_catalog):
             x_HII_profile[np.where(radial_grid < grid_model.R_bubble[ind_z,i] / (1 + zgrid))] = 1
             bubble_volume = np.trapz(4 * np.pi * radial_grid ** 2 * x_HII_profile,radial_grid)
             Ionized_vol += bubble_volume * nbr_halos  ##physical volume !!
-
-        print(nbr_halos, 'halos in mass bin ', i)
+        if print:
+            print(nbr_halos, 'halos in mass bin ', i)
     x_HII = Ionized_vol / (LBox / (1 + z)) ** 3  # normalize by total physical volume
     return zgrid, x_HII
 
@@ -495,29 +495,6 @@ def simple_xHII_approx(param,halo_catalog):
 
 
 
-
-
-def mfp_photons(param,halo_catalog):
-    ####### THIS IS NOT REALLY THE MEAN FREE PATH SINCE BUBBLES OVERLAPP. THIS IS WRONG:
-    ## mean free path of ionizing photons at a given redshift.
-    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
-    z_start = param.solver.z
-    model_name = param.sim.model_name
-    H_Masses = halo_catalog['M'][np.where(halo_catalog['M']>param.source.M_min)]
-    z = halo_catalog['z']
-    print('z is :',z)
-
-
-    grid_model = load_f('./profiles_output/Simple_Faster_' + model_name + '_zi{}.pkl'.format(param.solver.z))
-    ind_z = np.argmin(np.abs(grid_model.z_history - z))
-    Mh_bins = M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))
-    Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (Mh_bins))), axis=1) ## values of Mh at z_start, binned via M_Bin.
-
-    bin_nbr, nbr_halos = np.unique(Indexing, return_counts=True)
-
-    mfp = np.sum(grid_model.R_bubble[ind_z,bin_nbr] * nbr_halos * f_star_Halo(param,Mh_bins[bin_nbr]) * f_esc(param,Mh_bins[bin_nbr]))/np.sum(nbr_halos * f_star_Halo(param,Mh_bins[bin_nbr]) * f_esc(param,Mh_bins[bin_nbr]))
-
-    return mfp #co-Mpc
 
 
 
