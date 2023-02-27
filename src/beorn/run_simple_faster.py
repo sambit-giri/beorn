@@ -102,6 +102,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=T
         Grid_xHII = np.array([0])
         Grid_Temp = T_adiab_z * (1+delta_b)**(2/3)
         Grid_xal = np.array([0])
+        Grid_dTb = np.array([0])
 
     else:
         Ionized_vol = simple_xHII_approx(param,halo_catalog)[1]
@@ -221,7 +222,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=T
 
 
 
-def paint_profiles(param,temp =True,lyal=True,ion=True,dTb=True):
+def paint_boxes(param,temp =True,lyal=True,ion=True,dTb=True):
     """
     Parameters
     ----------
