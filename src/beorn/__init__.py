@@ -8,3 +8,4 @@ from .simple_model_faster import simple_solver_faster
 
 from .excursion_set import run_excursion_set, run_Sem_Num
 #from .run_Ross19 import  *
+from .run_code import *

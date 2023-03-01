@@ -3,8 +3,9 @@ In this script we define functions that can be called to :
 1. run the RT solver and compute the evolution of the T, x_HI profiles, and store them
 2. paint the profiles on a grid.
 """
-import beorn as rad
-from scipy.interpolate import splrep,splev, interp1d
+# import beorn as rad
+from .simple_model_faster import *
+from scipy.interpolate import splrep, splev, interp1d
 import numpy as np
 import pickle
 import datetime
@@ -16,6 +17,16 @@ from .couplings import x_coll,rho_alpha, S_alpha
 from .global_qty import simple_xHII_approx
 from os.path import exists
 from .python_functions import load_f, save_f
+
+def create_save_folders(folder_names=None, save_dir='./'):
+    if folder_names is None:
+        folder_names = ['profiles', 'grid_output', 'physics']
+    if save_dir is not None:
+        for name in folder_names:
+            if not os.path.isdir(save_dir+'/'+name):
+                os.mkdir(save_dir+'/'+name)
+                print('A folder created for {} created in {}'.format(name,save_dir))
+    return None
 
 
 def compute_profiles(param):
@@ -33,25 +44,18 @@ def compute_profiles(param):
     start_time = datetime.datetime.now()
 
     print('Computing Temperature (Tk), Lyman-α and ionisation fraction (xHII) profiles...')
-    if not os.path.isdir('./profiles'):
-        os.mkdir('./profiles')
-
-    if not os.path.isdir('./grid_output'):
-        os.mkdir('./grid_output')
-
-    if not os.path.isdir('./physics'):
-        os.mkdir('./physics')
+    create_save_folders(folder_names=None, save_dir=param.sim.save_dir)
 
     model_name = param.sim.model_name
-    pkl_name = './profiles/' + model_name + '_zi{}.pkl'.format(param.solver.z)
-    grid_model = rad.simple_solver_faster(param)
+    pkl_name = param.sim.save_dir+'/profiles/' + model_name + '_zi{}.pkl'.format(param.solver.z)
+    grid_model = simple_solver_faster(param)
     grid_model.solve(param)
-    pickle.dump(file=open(pkl_name, 'wb'), obj=grid_model)
-    print('...  Profiles and stored in dir ./profiles.')
-    print(' ')
+    if param.sim.save_dir is not None:
+        pickle.dump(file=open(pkl_name, 'wb'), obj=grid_model)
+        print('\n The profiles and stored in {}'.format(param.sim.save_dir+'/profiles/'))
     end_time = datetime.datetime.now()
-    print('It took :', end_time - start_time,'to compute the profiles.')
-
+    print('Runtime of computing the profiles:', end_time - start_time)
+    return grid_model
 
 def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=True):
     """

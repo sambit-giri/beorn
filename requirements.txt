@@ -13,7 +13,6 @@ sphinx>=2.3
 
 scikit-image
 tqdm 
-mpi4py
 tools21cm
 cmasher
 
