@@ -52,17 +52,16 @@ param.source.Mt= 1e9
 param.source.M_min= 1e8
 
 # Box size and Number of pixels
-Ncell = 128
-Lbox = 100
-param.sim.Lbox = Lbox
-param.sim.Ncell = Ncell
+param.sim.Lbox = 128
+param.sim.Ncell = 100
 param.sim.halo_catalogs ='./Halo_Catalogs/' ## path to dir with halo catalogs
-param.sim.thresh_pixel = 20*(Ncell/128)**3
-param.sim.dens_field = './density_field/grid'+str(Ncell)+'_Reio_512_B100_CDM.000'
+param.sim.thresh_pixel = 20*(param.sim.Ncell/128)**3
+param.sim.dens_field = './density_field/grid'+str(param.sim.Ncell)+'_Reio_512_B100_CDM.000'
 param.sim.dens_field_type = 'pkdgrav'
+param.sim.save_dir = 'new/'
 
 # Step 1 : Compute the profiles
-beorn.compute_profiles(param)
+profiles = beorn.compute_profiles(param)
 
 # Step 2 : Paint Boxes
 beorn.paint_boxes(param)
