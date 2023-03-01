@@ -22,11 +22,11 @@ def kappa_coll():
     """
 
     names = 'T, kappa'
-    path_to_file = pkg_resources.resource_filename('radtrans', "input_data/kappa_eH.dat")
+    path_to_file = pkg_resources.resource_filename('beorn', "input_data/kappa_eH.dat")
     eH = np.genfromtxt(path_to_file, usecols=(0, 1), comments='#', dtype=float, names=names)
 
     names = 'T, kappa'
-    path_to_file = pkg_resources.resource_filename('radtrans', 'input_data/kappa_HH.dat')
+    path_to_file = pkg_resources.resource_filename('beorn', 'input_data/kappa_HH.dat')
     HH = np.genfromtxt(path_to_file, usecols=(0, 1), comments='#', dtype=float, names=names)
 
     return HH, eH
@@ -115,7 +115,7 @@ def rho_alpha(r_grid, MM, zz, param):
 
     # rec fraction
     names = 'n, f'
-    path_to_file = pkg_resources.resource_filename('radtrans', 'input_data/recfrac.dat')
+    path_to_file = pkg_resources.resource_filename('beorn', 'input_data/recfrac.dat')
     rec = np.genfromtxt(path_to_file, usecols=(0, 1), comments='#', dtype=float, names=names)
 
     # line frequencies
