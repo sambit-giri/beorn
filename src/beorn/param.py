@@ -93,6 +93,7 @@ def cosmo_par():
     'rho_c' : 2.775e11,
     'h' : 0.68,
     's8': 0.83,
+    'ns': 0.96,
     'ps': "PCDM_Planck.dat",      ### This is the path to the input Linear Power Spectrum
     'corr_fct' : "corr_fct.dat",  ### This is the path where the corresponding correlation function will be stored. You can change it to anything.
     'HI_frac'  : 1-0.08,       # fraction of Helium. Only used when running H_He_Final. 1-fraction is Helium then.  0.2453 of total mass is in He according to BBN, so in terms of number density it is  1/(1+4*(1-f_He_bymass)/f_He_bymass)  ~0.075.

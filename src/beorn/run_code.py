@@ -7,6 +7,28 @@ File containing all the functions to run simulations.
 import numpy as np 
 import os
 from .run_simple_faster import *
+from .cosmo import *
+
+def run_coeval_EOR_CD(redshift, param):
+    """
+	Simulates a coeval cube with BEORN.
+	
+	Parameters
+	----------
+	redshift: float 
+		The redshift
+	param: Bunch 
+		The parameter file created using the beorn.par().
+	Returns
+	-------
+	grid_outputs: dict
+        The simulated cubes.
+	"""
+    matter_field = simulate_matter_21cmfast(redshift, param, IC=None)
+    initialise_run(param)
+    profiles = model_profiles(param, method='simple')
+    grid_outputs = paint_profiles(param, profiles=profiles)
+    return grid_outputs
 
 def initialise_run(param):
     if param.sim.data_dir is None:
@@ -16,8 +38,9 @@ def initialise_run(param):
 
 def model_profiles(param, method='simple'):
     model_name = param.sim.model_name
-    try: pkl_name = param.sim.data_dir+'/profiles/{}_zi_{:.3f}.pkl'.format(model_name,param.solver.z)
+    try: pkl_name = param.sim.data_dir+'/profiles/{}_zi_{:.3f}.pkl'.format(model_name,param.solver.z_ini)
     except: pkl_name = param.sim.data_dir
+    
     try:
         profiles = load_f(file = pkl_name)
         print('Profiles loaded from {}'.format(pkl_name))
@@ -78,11 +101,15 @@ def paint_profiles(param, temp=True, lyal=True, ion=True, dTb=True, profiles=Non
     return grid_outputs
 
 
-def _paint_profile_single_snap(filename, param, temp=True, lyal=True, ion=True, dTb=True, delta_b=None, profiles=None):
+def _paint_profile_single_snap(filename_or_dict, param, temp=True, lyal=True, ion=True, dTb=True, delta_b=None, profiles=None):
     store_grids = param.sim.store_grids
     param.sim.store_grids = False 
-    catalog = param.sim.halo_catalogs + filename
-    halo_catalog = load_f(catalog)
+
+    try:
+        catalog = param.sim.halo_catalogs + filename_or_dict
+        halo_catalog = load_f(catalog)
+    except:
+        halo_catalog = filename_or_dict
 
     model_name = param.sim.model_name
     LBox = param.sim.Lbox    # Mpc/h
@@ -108,7 +135,8 @@ def _paint_profile_single_snap(filename, param, temp=True, lyal=True, ion=True, 
 
     return grid_output, halo_catalog['z']
 
-def simulate_matter_21cmfast(param):
+
+def initialise_21cmfast(param):
     import py21cmfast as p21c
 
     data_dir = param.sim.data_dir #'./data/'
@@ -119,10 +147,84 @@ def simulate_matter_21cmfast(param):
                                    "N_THREADS": param.sim.n_jobs,
                                     })
     cosmo_params = p21c.CosmoParams(SIGMA_8=param.cosmo.s8,
-                                    hlittle=param.cosmo.h0,
+                                    hlittle=param.cosmo.h,
                                     OMm=param.cosmo.Om,
                                     OMb=param.cosmo.Ob,
                                     POWER_INDEX=param.cosmo.ns,
                                     )
-    # astro_params = p21c.AstroParams({"HII_EFF_FACTOR":20.0})
+    Tvir = M_to_Tvir(param.source.M_min/param.cosmo.h, param.solver.z_end, param)
+    astro_params = p21c.AstroParams({"ION_Tvir_MIN":20.0})
     random_seed  = param.sim.random_seed
+
+    with p21c.global_params.use(INITIAL_REDSHIFT=300, CLUMPING_FACTOR=2.0):
+        IC = p21c.initial_conditions(
+                user_params=user_params,
+                cosmo_params=cosmo_params,
+                random_seed=random_seed,
+                write=data_dir,
+                direc=data_dir,
+                )    
+    import tools21cm as t2c
+    pslin, klin = t2c.power_spectrum_1d(IC.hires_density, kbins=20, box_dims=user_params.BOX_LEN)
+    return IC, pslin, klin
+
+def simulate_matter_21cmfast(redshift, param, IC=None):
+    import py21cmfast as p21c
+
+    start_time = datetime.datetime.now()
+    print('Simulating matter evolution with 21cmFast...')
+
+    data_dir = param.sim.data_dir #'./data/'
+    user_params  = p21c.UserParams({"HII_DIM": param.sim.Ncell, "DIM": param.sim.Ncell*3, 
+                                    "BOX_LEN": param.sim.Lbox/param.cosmo.h, 
+                                    "USE_INTERPOLATION_TABLES": True,
+                                    #"FIXED_IC": True,
+                                   "N_THREADS": param.sim.n_jobs,
+                                    })
+    cosmo_params = p21c.CosmoParams(SIGMA_8=param.cosmo.s8,
+                                    hlittle=param.cosmo.h,
+                                    OMm=param.cosmo.Om,
+                                    OMb=param.cosmo.Ob,
+                                    POWER_INDEX=param.cosmo.ns,
+                                    )
+    Tvir = M_to_Tvir(param.source.M_min/param.cosmo.h, param.solver.z_end, param)
+    astro_params = p21c.AstroParams({"ION_Tvir_MIN":20.0})
+    random_seed  = param.sim.random_seed
+
+    with p21c.global_params.use(INITIAL_REDSHIFT=300, CLUMPING_FACTOR=2.0):
+        if IC is None:
+            IC, pslin, klin= initialise_21cmfast(param)
+
+        perturbed_field = p21c.perturb_field(
+                    redshift = redshift,
+                    init_boxes = IC,
+                    # user_params=user_params,
+                    # cosmo_params=cosmo_params,
+                    # astro_params=astro_params,
+                    # random_seed=random_seed,
+                    write=data_dir,
+                    direc=data_dir,
+                )
+        halo_list = p21c.perturb_halo_list(
+                    redshift = redshift,
+                    init_boxes = IC,
+                    # user_params=user_params,
+                    # cosmo_params=cosmo_params,
+                    # astro_params=astro_params,
+                    # random_seed=random_seed,
+                    write=data_dir,
+                    direc=data_dir,
+                )
+    
+    output = {'dens': perturbed_field.density,
+              'halo_list': {'X': halo_list.halo_coords[:,0]*param.sim.Lbox/user_params.HII_DIM,
+                            'Y': halo_list.halo_coords[:,1]*param.sim.Lbox/user_params.HII_DIM,
+                            'Z': halo_list.halo_coords[:,2]*param.sim.Lbox/user_params.HII_DIM,
+                            'M': halo_list.halo_masses*param.cosmo.h,
+                            'z': redshift,
+                            } 
+              }
+    end_time = datetime.datetime.now()
+    print('...done | Runtime =', end_time-start_time)
+    return output
+

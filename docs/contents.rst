@@ -4,5 +4,5 @@ Main modules
 
 Basic Functions
 ---------------
-.. automodule:: beorn.basic_functions
+.. automodule:: beorn.run_code
     :members:

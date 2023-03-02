@@ -89,7 +89,7 @@ def paint_profile_single_snap(filename_or_dict,param,temp=True,lyal=True,ion=Tru
 
     H_Masses, H_X, H_Y, H_Z = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z']
     z = halo_catalog['z']
-
+    print(z, H_X)
     ### To later add up the adiabatic temperature
     T_adiab_z = T_adiab(z, param)
     if delta_b is None: delta_b = load_delta_b(param,filename_or_dict) # rho/rhomean-1
