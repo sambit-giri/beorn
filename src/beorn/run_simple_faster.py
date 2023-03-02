@@ -75,7 +75,7 @@ def paint_profile_single_snap(filename_or_dict,param,temp=True,lyal=True,ion=Tru
 
     catalog_dir = param.sim.halo_catalogs
     start_time = datetime.datetime.now()
-    z_start = param.solver.z
+    z_start = param.solver.z_ini
     model_name = param.sim.model_name
     M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
 

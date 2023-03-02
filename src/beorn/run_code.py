@@ -107,3 +107,22 @@ def _paint_profile_single_snap(filename, param, temp=True, lyal=True, ion=True, 
         print('----- Redshift = {:.3f} is done -------'.format(halo_catalog['z']))
 
     return grid_output, halo_catalog['z']
+
+def simulate_matter_21cmfast(param):
+    import py21cmfast as p21c
+
+    data_dir = param.sim.data_dir #'./data/'
+    user_params  = p21c.UserParams({"HII_DIM": param.sim.Ncell, "DIM": param.sim.Ncell*3, 
+                                    "BOX_LEN": param.sim.Lbox/param.cosmo.h, 
+                                    "USE_INTERPOLATION_TABLES": True,
+                                    #"FIXED_IC": True,
+                                   "N_THREADS": param.sim.n_jobs,
+                                    })
+    cosmo_params = p21c.CosmoParams(SIGMA_8=param.cosmo.s8,
+                                    hlittle=param.cosmo.h0,
+                                    OMm=param.cosmo.Om,
+                                    OMb=param.cosmo.Ob,
+                                    POWER_INDEX=param.cosmo.ns,
+                                    )
+    # astro_params = p21c.AstroParams({"HII_EFF_FACTOR":20.0})
+    random_seed  = param.sim.random_seed

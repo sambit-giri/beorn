@@ -32,9 +32,9 @@ class simple_solver_faster:
     """
 
     def __init__(self, param):
-        self.z_initial = param.solver.z  # starting redshift
+        self.z_initial = param.solver.z_ini  # starting redshift
         if self.z_initial < 35:
-            print('WARNING : z_start (param.solver.z) should be larger than 35 when simple model is chosen.  ')
+            print('WARNING : Initial redshift (param.solver.z_ini) should be larger than 35 when simple model is chosen.')
         self.z_end = param.solver.z_end  # ending redshift
         self.alpha = param.source.alpha_MAR
         rmin = 1e-2

@@ -14,7 +14,7 @@ param.sim.binn = 40				# nbr of halo mass bin
 
 
 #solver
-param.solver.z = 40
+param.solver.z_ini = 40
 param.solver.z_end = 6
 param.solver.Nz = 200
 
