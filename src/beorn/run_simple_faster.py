@@ -29,7 +29,7 @@ def create_save_folders(folder_names=None, save_dir='./'):
     return None
 
 
-def compute_profiles(param):
+def compute_profiles(param, pkl_name=None):
     """
     This function computes the Temperature, Lyman-alpha, and ionisation fraction profiles that will then be used to produce the maps.
 
@@ -47,7 +47,7 @@ def compute_profiles(param):
     create_save_folders(folder_names=None, save_dir=param.sim.save_dir)
 
     model_name = param.sim.model_name
-    pkl_name = param.sim.save_dir+'/profiles/' + model_name + '_zi{}.pkl'.format(param.solver.z)
+    if pkl_name is None: pkl_name = param.sim.save_dir+'/profiles/' + model_name + '_zi{}.pkl'.format(param.solver.z)
     grid_model = simple_solver_faster(param)
     grid_model.solve(param)
     if param.sim.save_dir is not None:
@@ -57,7 +57,7 @@ def compute_profiles(param):
     print('Runtime of computing the profiles:', end_time - start_time)
     return grid_model
 
-def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=True):
+def paint_profile_single_snap(filename_or_dict,param,temp=True,lyal=True,ion=True,dTb=True,delta_b=None,profiles=None):
     """
     Paint the Tk, xHII and Lyman alpha profiles on a grid for a single halo catalog named filename.
 
@@ -80,26 +80,29 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=T
 
     LBox = param.sim.Lbox  # Mpc/h
     nGrid = param.sim.Ncell  # number of grid cells
-    catalog = catalog_dir + filename
-    halo_catalog = load_f(catalog)
+    try:
+        catalog = catalog_dir + filename_or_dict
+        halo_catalog = load_f(catalog)
+    except:
+        halo_catalog = filename_or_dict
 
     H_Masses, H_X, H_Y, H_Z = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z']
     z = halo_catalog['z']
 
     ### To later add up the adiabatic temperature
     T_adiab_z = T_adiab(z, param)
-    delta_b = load_delta_b(param,filename) # rho/rhomean-1
+    if delta_b is None: delta_b = load_delta_b(param,filename_or_dict) # rho/rhomean-1
 
     Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
     factor = 27 * Ob * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)
     coef = rhoc0 * h0 ** 2 * Ob * (1 + z) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H
 
     # quick load to find matching redshift between solver output and simulation snapshot.
-    grid_model = load_f(file = './profiles/' + model_name + '_zi{}.pkl'.format(z_start))
+    grid_model = load_f(file = param.sim.save_dir+'/profiles/' + model_name + '_zi{}.pkl'.format(z_start)) if profiles is None else profiles
     ind_z = np.argmin(np.abs(grid_model.z_history - z))
     zgrid = grid_model.z_history[ind_z]
     Indexing = np.argmin( np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
-    print('There are', H_Masses.size, 'halos at z=', z, )
+    print('There are {} halos at z = {:.3f}'.format(H_Masses.size, z))
 
     if H_Masses.size == 0:
         print('There aint no sources')
@@ -110,7 +113,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=T
         Grid_dTb = factor * np.sqrt(1 + z) * (1 - Tcmb0 * (1 + z) / Grid_Temp) * (1 - Grid_xHII) * (delta_b + 1) * Grid_xcoll / (1 + Grid_xcoll)
 
     else:
-        Ionized_vol = simple_xHII_approx(param,halo_catalog)[1]
+        Ionized_vol = simple_xHII_approx(param,halo_catalog,profiles=profiles)[1]
         print('Quick calculation from the profiles predicts xHII = ',round(Ionized_vol,4))
         if Ionized_vol > 1:
             Grid_xHII = np.array([1])
@@ -182,7 +185,9 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=T
 
 
                 end_time = datetime.datetime.now()
-                print(len(indices), 'halos in mass bin ', i, '. It took : ', end_time - start_time,'to paint the profiles.')
+                # print(len(indices), 'halos in mass bin ', i, '. It took : ', end_time - start_time,'to paint the profiles.')
+                print('Mass bin {}/{} | n_haloes = {}, painting runtime = {}'.format(i+1,M_Bin.size,len(indices),end_time - start_time))
+            # print(M_Bin.shape)
 
             Grid_Storage = np.copy(Grid_xHII_i)
 
@@ -192,7 +197,8 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=T
                 Grid_xHII = np.array([1])
 
             time_spreadring_end = datetime.datetime.now()
-            print('It took:', time_spreadring_end - end_time, 'to spread the excess photons')
+            # print('It took:', time_spreadring_end - end_time, 'to spread the excess photons')
+            print('Runtime to spread the excess photons:', time_spreadring_end - end_time)
 
             if np.all(Grid_xHII == 0):
                 Grid_xHII = np.array([0])
@@ -207,21 +213,22 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,dTb=T
                 Grid_xtot = Grid_xcoll + Grid_xal/4/np.pi
                 Grid_dTb = factor * np.sqrt(1 + z) * (1 - Tcmb0 * (1 + z) / Grid_Temp) * (1-Grid_xHII) * (delta_b + 1) * Grid_xtot / (1 + Grid_xtot)
 
+    output_dict = {}
+    if temp:
+        output_dict['temp'] = Grid_Temp
+        if param.sim.store_grids: save_f(file=param.sim.save_dir+'/grid_output/T_Grid'   + str(nGrid)  + model_name + '_snap' + filename_or_dict[4:-5], obj=Grid_Temp)
+    if ion:
+        output_dict['ion'] = Grid_xHII
+        if param.sim.store_grids: save_f(file=param.sim.save_dir+'/grid_output/xHII_Grid'+ str(nGrid)  + model_name + '_snap' + filename_or_dict[4:-5], obj=Grid_xHII)
+    if lyal:
+        # We divide by 4pi to go to sr**-1 units
+        output_dict['lyal'] = Grid_xal * S_alpha(z, Grid_Temp, 1 - Grid_xHII)/4/np.pi
+        if param.sim.store_grids: save_f(file=param.sim.save_dir+'/grid_output/xal_Grid' + str(nGrid)  + model_name + '_snap' + filename_or_dict[4:-5], obj=Grid_xal * S_alpha(z, Grid_Temp, 1 - Grid_xHII)/4/np.pi)
+    if dTb:
+        output_dict['dTb'] = Grid_dTb
+        if param.sim.store_grids: save_f(file=param.sim.save_dir+'/grid_output/dTb_Grid' + str(nGrid)  + model_name + '_snap' + filename_or_dict[4:-5], obj=Grid_dTb)
 
-
-    if param.sim.store_grids:
-        if temp:
-            save_f(file='./grid_output/T_Grid'   + str(nGrid)  + model_name + '_snap' + filename[4:-5], obj=Grid_Temp)
-        if ion:
-            save_f(file='./grid_output/xHII_Grid'+ str(nGrid)  + model_name + '_snap' + filename[4:-5], obj=Grid_xHII)
-        if lyal:
-            # We divide by 4pi to go to sr**-1 units
-            save_f(file='./grid_output/xal_Grid' + str(nGrid)  + model_name + '_snap' + filename[4:-5], obj=Grid_xal * S_alpha(z, Grid_Temp, 1 - Grid_xHII)/4/np.pi)
-        if dTb:
-            save_f(file='./grid_output/dTb_Grid' + str(nGrid)  + model_name + '_snap' + filename[4:-5], obj=Grid_dTb)
-
-
-
+    return output_dict
 
 
 
@@ -265,7 +272,7 @@ def paint_boxes(param,temp =True,lyal=True,ion=True,dTb=True):
                 print('xHII map for snapshot ',filename[4:-5],'already painted. Skiping.')
             else:
                 print('----- Painting for snapshot nbr :', filename[4:-5], '-------')
-                paint_profile_single_snap(filename,param,temp=temp, lyal=lyal, ion=ion, dTb=dTb)
+                output_dict = paint_profile_single_snap(filename,param,temp=temp, lyal=lyal, ion=ion, dTb=dTb)
                 print('----- Snapshot nbr :', filename[4:-5], ' is done -------')
  
     end_time = datetime.datetime.now()
@@ -308,7 +315,7 @@ def grid_dTb(param,ion = None):
             #Grid_xtot_ov        = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + model_name + '_snap' + filename[4:-5], 'rb'))
             Grid_xal             = pickle.load(file=open('./grid_output/xal_Grid' + str(nGrid)+ model_name + '_snap' + filename[4:-5], 'rb'))
 
-            dens_field = param.sim.dens_field
+            dens_field = param.sim.dens_fields
             if dens_field is not None:
                 delta_b = load_delta_b(param, filename)
             else :
@@ -334,7 +341,7 @@ def grid_dTb(param,ion = None):
 
 
 
-def compute_GS(param,string='',RSD = False,ion = None):
+def compute_GS(param, string='', RSD=False, ion=None):
     """
     Reads in the grids and compute the global quantities averaged.
     If RSD is True, will add RSD calculation
@@ -511,7 +518,7 @@ def compute_PS(param,Tspin = False,RSD = False,ion = None,cross_corr = False):
         if Tspin :
             delta_Tspin = Grid_Tspin / np.mean(Grid_Tspin) - 1
 
-        dens_field = param.sim.dens_field
+        dens_field = param.sim.dens_fields
         if dens_field is not None:
             delta_rho = load_delta_b(param,filename)
             PS_rho[ii]      = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=Lbox , kbins=kbins)[0]
@@ -572,11 +579,12 @@ def load_delta_b(param,filename):
     """
     LBox = param.sim.Lbox
     nGrid = param.sim.Ncell
-    dens_field = param.sim.dens_field
+    dens_field = param.sim.dens_fields
 
     if param.sim.dens_field_type == 'pkdgrav':
         if dens_field is not None :
-            dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
+            try: dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
+            except: dens = np.fromfile(filename, dtype=np.float32)
             pkd  = dens.reshape(nGrid, nGrid, nGrid)
             pkd  = pkd.T  ### take the transpose to match X_ion map coordinates
             V_total = LBox ** 3
@@ -588,7 +596,8 @@ def load_delta_b(param,filename):
             delta_b = np.array([0])  # rho/rhomean-1 (usual delta here..)
 
     elif param.sim.dens_field_type == '21cmFAST':
-        delta_b = load_f(dens_field + filename[4:-5] + '.0')
+        try: delta_b = load_f(dens_field + filename[4:-5] + '.0')
+        except: delta_b = load_f(filename)
     else :
         print('param.sim.dens_field_type should be either 21cmFAST or pkdgrav.')
     return delta_b
@@ -677,7 +686,7 @@ def saturated_Tspin(param,ion = None):
     print('Looping over redshifts....')
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         zz_ = load_f(catalog_dir + filename)['z']
-        dens_field = param.sim.dens_field
+        dens_field = param.sim.dens_fields
         if dens_field is not None:
             delta_b = load_delta_b(param, filename)
         else:

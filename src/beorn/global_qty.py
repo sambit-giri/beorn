@@ -462,7 +462,7 @@ def global_xhii_approx(param):
     return np.array((zz,xHII))
 
 
-def simple_xHII_approx(param,halo_catalog,print=False):
+def simple_xHII_approx(param,halo_catalog,print=False,profiles=None):
     ## compute mean ion fraction from Rbubble values and halo catalog.  for the simple bubble solver
     LBox = param.sim.Lbox       # Mpc/h
     M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
@@ -471,7 +471,7 @@ def simple_xHII_approx(param,halo_catalog,print=False):
     H_Masses = halo_catalog['M']
     z = halo_catalog['z']
 
-    grid_model = load_f('./profiles/' + model_name + '_zi{}.pkl'.format(param.solver.z))
+    grid_model = load_f('./profiles/' + model_name + '_zi{}.pkl'.format(param.solver.z)) if profiles is None else profiles
     ind_z = np.argmin(np.abs(grid_model.z_history - z))
     zgrid = grid_model.z_history[ind_z]
     Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1) ## values of Mh at z_start, binned via M_Bin.
