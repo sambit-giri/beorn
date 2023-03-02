@@ -24,7 +24,14 @@ def run_coeval_EOR_CD(redshift, param):
 	grid_outputs: dict
         The simulated cubes.
 	"""
-    matter_field = simulate_matter_21cmfast(redshift, param, IC=None)
+    if param.sim.dens_fields is None or param.sim.halo_catalogs is None:
+        if param.sim.dens_field_type == '21cmfast':
+            matter_field = simulate_matter_21cmfast(redshift, param, IC=None)
+            param.sim.dens_fields   = [matter_field['dens']]
+            param.sim.halo_catalogs = [matter_field['halo_list']]
+        else:
+            print('BEORN is not coupled to {}.'.format(param.sim.dens_field_type)) 
+            print('Please run this code manual and pass the density and halo catalogs.')
     initialise_run(param)
     profiles = model_profiles(param, method='simple')
     grid_outputs = paint_profiles(param, profiles=profiles)

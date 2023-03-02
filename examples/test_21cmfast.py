@@ -64,17 +64,20 @@ param.sim.data_dir = 'py21cmfast_test/'
 param.sim.n_jobs = 1 #1
 param.sim.store_grids = False #True #'replace' # True # False
 
-# Simulate matter evolution
+# # Simulate matter evolution
+# redshift = 8.0
+# matter_field = beorn.simulate_matter_21cmfast(redshift, param, IC=None)
+
+# param.sim.dens_fields   = [matter_field['dens']]
+# param.sim.halo_catalogs = [matter_field['halo_list']]
+
+# # Simulate cosmic dawn
+# beorn.initialise_run(param)
+# profiles = beorn.model_profiles(param, method='simple')
+# grid_outputs = beorn.paint_profiles(param, profiles=profiles)
+
 redshift = 8.0
-matter_field = beorn.simulate_matter_21cmfast(redshift, param, IC=None)
-
-param.sim.dens_fields   = [matter_field['dens']]
-param.sim.halo_catalogs = [matter_field['halo_list']]
-
-# Simulate cosmic dawn
-beorn.initialise_run(param)
-profiles = beorn.model_profiles(param, method='simple')
-grid_outputs = beorn.paint_profiles(param, profiles=profiles)
+grid_outputs = beorn.run_coeval_EOR_CD(redshift, param)
 
 fig, axs = plt.subplots(1,3,figsize=(14,4))
 ax, sl = axs[0], grid_outputs['{:.3f}'.format(redshift)]['ion'][1]
@@ -83,7 +86,7 @@ pm = ax.pcolormesh(np.linspace(0,param.sim.Lbox,sl.shape[0]), np.linspace(0,para
                 sl, cmap='Greys')
 fig.colorbar(pm, ax=ax)
 ax, sl = axs[1], grid_outputs['{:.3f}'.format(redshift)]['dens'][1]
-ax.set_title('$T_\mathrm{k}$')
+ax.set_title('$\delta_\mathrm{b}$') #ax.set_title('$T_\mathrm{k}$')
 pm = ax.pcolormesh(np.linspace(0,param.sim.Lbox,sl.shape[0]), np.linspace(0,param.sim.Lbox,sl.shape[1]),
                 sl, cmap='jet')
 fig.colorbar(pm, ax=ax)
@@ -103,8 +106,8 @@ import tools21cm as t2c
 
 ps_dn, ks = t2c.power_spectrum_1d(grid_outputs['{:.3f}'.format(redshift)]['dens'], kbins=10, box_dims=param.sim.Lbox)
 ps_in, ks = t2c.power_spectrum_1d(grid_outputs['{:.3f}'.format(redshift)]['ion'], kbins=10, box_dims=param.sim.Lbox)
-ps_Tk, ks = t2c.power_spectrum_1d(grid_outputs['{:.3f}'.format(redshift)]['temp'], kbins=10, box_dims=param.sim.Lbox)
-# ps_dT, ks = t2c.power_spectrum_1d(grid_outputs['{:.3f}'.format(redshift)]['dTb'], kbins=10, box_dims=param.sim.Lbox)
+# ps_Tk, ks = t2c.power_spectrum_1d(grid_outputs['{:.3f}'.format(redshift)]['temp'], kbins=10, box_dims=param.sim.Lbox)
+ps_dT, ks = t2c.power_spectrum_1d(grid_outputs['{:.3f}'.format(redshift)]['dTb'], kbins=10, box_dims=param.sim.Lbox)
 
 fig, axs = plt.subplots(1,2,figsize=(10,4))
 ax = axs[0]
