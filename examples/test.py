@@ -59,9 +59,9 @@ param.sim.halo_catalogs ='simple_test/Halo_Catalogs/' ## path to dir with halo c
 param.sim.thresh_pixel = 20*(param.sim.Ncell/128)**3
 param.sim.dens_fields = 'simple_test/density_field/grid'+str(param.sim.Ncell)+'_Reio_512_B100_CDM.00047.0'
 param.sim.dens_field_type = 'pkdgrav'
-param.sim.save_dir = 'simple_test'
+param.sim.data_dir = None #'simple_test'
 param.sim.n_jobs = 1 #1
-param.sim.store_grids = True #'replace' # True # False
+param.sim.store_grids = False #True #'replace' # True # False
 
 # Step 0: Initialisation
 beorn.initialise_run(param)
@@ -98,10 +98,23 @@ plt.show()
 # Step 3 : Statitical measures
 import tools21cm as t2c
 
-ps, ks = t2c.power_spectrum_1d(grid_outputs['9.890']['dTb'], kbins=10, box_dims=param.sim.Lbox)
+ps_dn, ks = t2c.power_spectrum_1d(grid_outputs['9.890']['dens'], kbins=10, box_dims=param.sim.Lbox)
+ps_in, ks = t2c.power_spectrum_1d(grid_outputs['9.890']['ion'], kbins=10, box_dims=param.sim.Lbox)
+ps_Tk, ks = t2c.power_spectrum_1d(grid_outputs['9.890']['temp'], kbins=10, box_dims=param.sim.Lbox)
+ps_dT, ks = t2c.power_spectrum_1d(grid_outputs['9.890']['dTb'], kbins=10, box_dims=param.sim.Lbox)
 
-fig, ax = plt.subplots(1,1,figsize=(5,4))
-ax.loglog(ks, ps*ks**3/2/np.pi**2)
-ax.set_xlabel('k [1/Mpc]')
-ax.set_ylabel('$\Delta^2_\mathrm{21}$')
+fig, axs = plt.subplots(1,2,figsize=(10,4))
+ax = axs[0]
+ax.loglog(ks, ps_dT*ks**3/2/np.pi**2)
+ax.set_ylabel('$\Delta^2_\mathrm{21}$', fontsize=15)
+ax.axis([7e-2,7,1,1e3])
+ax = axs[1]
+ax.loglog(ks, ps_dT*ks**3/2/np.pi**2/grid_outputs['9.890']['dTb'].mean()**2, label='$\delta_\mathrm{21}$')
+ax.loglog(ks, ps_dn*ks**3/2/np.pi**2, ls='--', label='$\delta_\mathrm{b}$')
+ax.loglog(ks, ps_in*ks**3/2/np.pi**2, ls='-.', label='$\delta_\mathrm{x}$')
+ax.loglog(ks, ps_Tk*ks**3/2/np.pi**2, ls=':', label='$\delta_\mathrm{T}$')
+ax.set_ylabel('$\Delta^2_\mathrm{\delta}$', fontsize=15)
+ax.legend()
+for ax in axs: ax.set_xlabel('k [1/Mpc]', fontsize=15)
+plt.tight_layout()
 plt.show()

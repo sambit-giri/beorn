@@ -18,14 +18,14 @@ from .global_qty import simple_xHII_approx
 from os.path import exists
 from .python_functions import load_f, save_f
 
-def create_save_folders(folder_names=None, save_dir='./'):
+def create_save_folders(folder_names=None, data_dir='./'):
     if folder_names is None:
         folder_names = ['profiles', 'grid_output', 'physics']
-    if save_dir is not None:
+    if data_dir is not None:
         for name in folder_names:
-            if not os.path.isdir(save_dir+'/'+name):
-                os.mkdir(save_dir+'/'+name)
-                print('A folder created for {} created in {}'.format(name,save_dir))
+            if not os.path.isdir(data_dir+'/'+name):
+                os.mkdir(data_dir+'/'+name)
+                print('A folder created for {} created in {}'.format(name,data_dir))
     return None
 
 
@@ -44,15 +44,16 @@ def compute_profiles(param, pkl_name=None):
     start_time = datetime.datetime.now()
 
     print('Computing Temperature (Tk), Lyman-α and ionisation fraction (xHII) profiles...')
-    create_save_folders(folder_names=None, save_dir=param.sim.save_dir)
+    create_save_folders(folder_names=None, data_dir=param.sim.data_dir)
 
     model_name = param.sim.model_name
-    if pkl_name is None: pkl_name = param.sim.save_dir+'/profiles/' + model_name + '_zi{}.pkl'.format(param.solver.z)
+    try: pkl_name = param.sim.data_dir+'/profiles/' + model_name + '_zi{}.pkl'.format(param.solver.z)
+    except: pass
     grid_model = simple_solver_faster(param)
     grid_model.solve(param)
-    if param.sim.save_dir is not None:
+    if param.sim.data_dir is not None:
         pickle.dump(file=open(pkl_name, 'wb'), obj=grid_model)
-        print('\n The profiles and stored in {}'.format(param.sim.save_dir+'/profiles/'))
+        print('\n The profiles and stored in {}'.format(param.sim.data_dir+'/profiles/'))
     end_time = datetime.datetime.now()
     print('Runtime of computing the profiles:', end_time - start_time)
     return grid_model
@@ -98,7 +99,7 @@ def paint_profile_single_snap(filename_or_dict,param,temp=True,lyal=True,ion=Tru
     coef = rhoc0 * h0 ** 2 * Ob * (1 + z) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H
 
     # quick load to find matching redshift between solver output and simulation snapshot.
-    grid_model = load_f(file = param.sim.save_dir+'/profiles/' + model_name + '_zi{}.pkl'.format(z_start)) if profiles is None else profiles
+    grid_model = load_f(file = param.sim.data_dir+'/profiles/' + model_name + '_zi{}.pkl'.format(z_start)) if profiles is None else profiles
     ind_z = np.argmin(np.abs(grid_model.z_history - z))
     zgrid = grid_model.z_history[ind_z]
     Indexing = np.argmin( np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
@@ -216,17 +217,17 @@ def paint_profile_single_snap(filename_or_dict,param,temp=True,lyal=True,ion=Tru
     output_dict = {}
     if temp:
         output_dict['temp'] = Grid_Temp
-        if param.sim.store_grids: save_f(file=param.sim.save_dir+'/grid_output/T_Grid'   + str(nGrid)  + model_name + '_snap' + filename_or_dict[4:-5], obj=Grid_Temp)
+        if param.sim.store_grids: save_f(file=param.sim.data_dir+'/grid_output/T_Grid'   + str(nGrid)  + model_name + '_snap' + filename_or_dict[4:-5], obj=Grid_Temp)
     if ion:
         output_dict['ion'] = Grid_xHII
-        if param.sim.store_grids: save_f(file=param.sim.save_dir+'/grid_output/xHII_Grid'+ str(nGrid)  + model_name + '_snap' + filename_or_dict[4:-5], obj=Grid_xHII)
+        if param.sim.store_grids: save_f(file=param.sim.data_dir+'/grid_output/xHII_Grid'+ str(nGrid)  + model_name + '_snap' + filename_or_dict[4:-5], obj=Grid_xHII)
     if lyal:
         # We divide by 4pi to go to sr**-1 units
         output_dict['lyal'] = Grid_xal * S_alpha(z, Grid_Temp, 1 - Grid_xHII)/4/np.pi
-        if param.sim.store_grids: save_f(file=param.sim.save_dir+'/grid_output/xal_Grid' + str(nGrid)  + model_name + '_snap' + filename_or_dict[4:-5], obj=Grid_xal * S_alpha(z, Grid_Temp, 1 - Grid_xHII)/4/np.pi)
+        if param.sim.store_grids: save_f(file=param.sim.data_dir+'/grid_output/xal_Grid' + str(nGrid)  + model_name + '_snap' + filename_or_dict[4:-5], obj=Grid_xal * S_alpha(z, Grid_Temp, 1 - Grid_xHII)/4/np.pi)
     if dTb:
         output_dict['dTb'] = Grid_dTb
-        if param.sim.store_grids: save_f(file=param.sim.save_dir+'/grid_output/dTb_Grid' + str(nGrid)  + model_name + '_snap' + filename_or_dict[4:-5], obj=Grid_dTb)
+        if param.sim.store_grids: save_f(file=param.sim.data_dir+'/grid_output/dTb_Grid' + str(nGrid)  + model_name + '_snap' + filename_or_dict[4:-5], obj=Grid_dTb)
 
     return output_dict
 

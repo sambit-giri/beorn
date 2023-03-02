@@ -9,14 +9,15 @@ import os
 from .run_simple_faster import *
 
 def initialise_run(param):
-    if param.sim.save_dir is None:
+    if param.sim.data_dir is None:
         print('The outputs will not be saved during the runtime.')
-    create_save_folders(folder_names=None, save_dir=param.sim.save_dir)
+    create_save_folders(folder_names=None, data_dir=param.sim.data_dir)
     return None
 
 def model_profiles(param, method='simple'):
     model_name = param.sim.model_name
-    pkl_name = param.sim.save_dir+'/profiles/' + model_name + '_zi_{:.3f}.pkl'.format(param.solver.z)
+    try: pkl_name = param.sim.data_dir+'/profiles/{}_zi_{:.3f}.pkl'.format(model_name,param.solver.z)
+    except: pkl_name = param.sim.data_dir
     try:
         profiles = load_f(file = pkl_name)
         print('Profiles loaded from {}'.format(pkl_name))
@@ -72,7 +73,7 @@ def paint_profiles(param, temp=True, lyal=True, ion=True, dTb=True, profiles=Non
     print('Finished painting the maps.')
     print('Runtime of painting the grids:', end_time-start_time)
     if param.sim.store_grids: 
-        print('Grids are stored in', param.sim.save_dir+'/grid_output/')
+        print('Grids are stored in', param.sim.data_dir+'/grid_output/')
 
     return grid_outputs
 
@@ -86,8 +87,13 @@ def _paint_profile_single_snap(filename, param, temp=True, lyal=True, ion=True, 
     model_name = param.sim.model_name
     LBox = param.sim.Lbox    # Mpc/h
     nGrid = param.sim.Ncell  # number of grid cells
-    grid_filename = param.sim.save_dir+'/grid_output/Grid_{}_z_{:.3f}_model_{}.pkl'.format(nGrid, halo_catalog['z'], model_name)
-    check_if_present = False if store_grids=='replace' else os.path.exists(grid_filename)
+    
+    try:
+        grid_filename = param.sim.data_dir+'/grid_output/Grid_{}_z_{:.3f}_model_{}.pkl'.format(nGrid, halo_catalog['z'], model_name)
+        check_if_present = False if store_grids=='replace' else os.path.exists(grid_filename)
+    except:
+        grid_filename = None 
+        check_if_present = False
 
     if check_if_present:
         print('The snapshot is already present in {}'.format(grid_filename))
@@ -96,6 +102,7 @@ def _paint_profile_single_snap(filename, param, temp=True, lyal=True, ion=True, 
         print('----- Painting for redshift = {:.3f} -------'.format(halo_catalog['z']))
         if type(delta_b)==str: delta_b = load_delta_b(param, delta_b)
         grid_output = paint_profile_single_snap(halo_catalog, param, temp=temp, lyal=lyal, ion=ion, dTb=dTb, profiles=profiles, delta_b=delta_b)
+        grid_output['dens'] = delta_b
         if store_grids: save_f(file=grid_filename, obj=grid_output)
         print('----- Redshift = {:.3f} is done -------'.format(halo_catalog['z']))
 
