@@ -7,7 +7,6 @@ param = beorn.par()
 #sim
 param.sim.M_i_min = 3e1 * np.exp(0.79*(25-40))
 param.sim.M_i_max = 8e7 * np.exp(0.79*(25-40))
-
 param.sim.model_name = 'py21cmfast_test'
 param.sim.cores = 1			    # nbr of cores to use
 param.sim.binn = 40				# nbr of halo mass bin
