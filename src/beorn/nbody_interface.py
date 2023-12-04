@@ -3,6 +3,8 @@ Scripts to use outputs from the pkdgrav (currently version 3)
 N-body simulations.
 """
 import numpy as np 
+from scipy.interpolate import splev, splrep
+import pandas as pd
 
 class HaloCatalogue_Pkdgrav3:
 
@@ -14,7 +16,8 @@ class HaloCatalogue_Pkdgrav3:
         self.rho_c   = rho_c 
         self.verbose = verbose
 
-        self.data = None
+        self.fof_data = None
+        self.pk_data  = None
 
     def dLightSpeedSim(self,dMpcUnit):
         """
@@ -82,13 +85,13 @@ class HaloCatalogue_Pkdgrav3:
         ])
 
         data = np.fromfile(filename, dtype=dtype)
-        self.data = data
+        self.fof_data = data
         if self.verbose: 
             print('The data FoF halo data read.')
 
     def array_fof_data(self, dtype=float):
         BOX  = self.box_len
-        data = self.data 
+        data = self.fof_data 
 
         if data is not None:
             dMassFac = self.dMassFac
@@ -117,4 +120,30 @@ class HaloCatalogue_Pkdgrav3:
         if self.verbose:
             print(f'The FoF halo data saved as {savefile}')
 
+    def read_pk_data(self, filename, ks=None, window_size=None):
+        pk_data = {}
+        rd = np.loadtxt(filename)
+        kk, pp = rd[:,0], rd[:,1]
+        pk_data['k'] = kk 
+        pk_data['P'] = pp 
 
+        with open(filename, 'r') as file:
+            lines = [line.strip() for line in file.readlines() if line.startswith('#')]
+        pk_data['header'] = []
+        for line in lines:
+            if 'z=' in line:
+                pk_data['z'] = float(line.split('z=')[-1])
+            pk_data['header'].append(line)
+        
+        self.pk_data = pk_data
+
+        if ks is not None:
+            tck = splrep(np.log10(kk), np.log10(pp))
+            pp  = 10**splev(np.log10(ks), tck)
+            kk  = ks
+        if window_size is not None:
+            # Apply a simple moving average (adjust the window size as needed)
+            data = pd.DataFrame({'x': np.log10(kk), 'y': np.log10(pp)})
+            data['y_smoothed'] = data['y'].rolling(window=window_size, min_periods=1).mean()
+            pp = 10**data['y_smoothed']
+        return kk, pp
