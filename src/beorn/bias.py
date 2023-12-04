@@ -5,11 +5,7 @@ from scipy.interpolate import splrep,splev,interp1d
 from .constants import *
 from .cosmo import D, rhoc_of_z
 
-
-
-
-
-delta_c = 1.686
+# delta_c = 1.686
 
 def delt_c(z,param):
     return delta_c/D(1/(1+z),param)

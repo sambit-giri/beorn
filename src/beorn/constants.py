@@ -52,3 +52,6 @@ Hz_per_eV = 241799050402293
 
 ##Thomson scattering cross-section in meters
 sigma_T = 6.6524 * 10 ** -29
+
+##Structure formation
+delta_c = 1.686

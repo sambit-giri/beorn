@@ -5,10 +5,6 @@ Here we write all the functions needed for the solver describing interactions, s
 import numpy as np
 from .constants import *
 
-
-
-
-
 ############ Used for Hydrogen
 def sigma_HI(E):
     """

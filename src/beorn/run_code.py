@@ -58,6 +58,21 @@ def model_profiles(param, method='simple'):
             print('This method is not implemented.')
     return profiles
 
+def model_post_HI_profiles(param, method='Model1'):
+    model_name = param.sim.model_name
+    try: pkl_name = param.sim.data_dir+'/profiles/{}_zi_{:.3f}.pkl'.format(model_name,param.solver.z_ini)
+    except: pkl_name = param.sim.data_dir
+    
+    try:
+        profiles = load_f(file = pkl_name)
+        print('Profiles loaded from {}'.format(pkl_name))
+    except:
+        if method.lower()=='simple':
+            profiles = compute_profiles(param, pkl_name=pkl_name)
+        else:
+            print('This method is not implemented.')
+    return profiles
+
 def paint_profiles(param, temp=True, lyal=True, ion=True, dTb=True, profiles=None):
     """
     Parameters
