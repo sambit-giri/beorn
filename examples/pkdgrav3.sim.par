@@ -1,0 +1,81 @@
+import math
+
+achOutName	= "CDM_100Mpc_2048"
+
+# Memory and performance
+bMemUnordered	= 1	# iOrder replaced by potential and group id
+bNewKDK         = 1	# No accelerations in the particle, dual tree possible
+bDualTree	    = 1	# Use two trees
+bMemPotential  = 0
+nBucket = 24
+bMemIntegerPosition = 1
+dExtraStore = 0.02
+
+# Initial Condition
+dBoxSize        = 100        # Mpc/h
+nGrid           = 2048       # Simulation has nGrid^3 particles
+b2LPT           = 1          # second order IC
+iSeed           = 314159265  # Random seed
+dRedFrom        = 150        # Starting redshift
+
+iStartStep	= 0
+nSteps		= 100 # Number of timesteps of simulations
+dRedTo		= 5   # End redshift
+
+# Cosmology
+achTfFile       = "euclid_z0_transfer_combined.dat"
+h               = 0.67
+dOmega0         = 0.32
+dLambda         = 0.68
+dSigma8         = 0.83
+dSpectral       = 0.96
+# w0		= -1.0
+# wa		= 0.0
+# dOmegaDE	= 0.68
+
+# Logging/Output
+iLogInterval    = 1
+iOutInterval	= 2
+iCheckInterval	= 5 #1
+bDoDensity	= 1 # enable density outputs
+bVDetails	= 1
+dHubble0    = math.sqrt(math.pi*8/3)
+
+bOverwrite	= 1
+bParaRead   = 1	# Read in parallel
+bParaWrite  = 1	# Write in parallel (does not work on all file systems)
+#nParaRead	= 8	# Limit number of simultaneous readers to this
+#nParaWrite	= 8	# Limit number of simultaneous writers to this
+
+# Cosmological Simulation
+bComove     = 1     # Use comoving coordinates
+bPeriodic   = 1     # with a periodic box
+bEwald 		= 1     # enable Ewald periodic boundaries
+
+# Accuracy Parameters
+bEpsAccStep	= 1     # Choose eps/a timestep criteria
+dTheta  	= 0.40	# accuracy of forces for z > 20
+dTheta20  	= 0.55	# accuracy of forces for z > 2
+dTheta2     = 0.70	# accuracy of forces for z <= 2
+
+#mass and softening in file
+#bMemMass=1
+#bMemSoft=1
+
+# Measure Pk
+nGridPk         = 256 # grid size for power spectrum measurement
+iPkInterval     = 2   # how often it will output the Power spectrum
+iDeltakInterval = 0   # how often it will output the grid in k space 
+
+# Group Finding
+bFindGroups     = 1 # 1 to activate fof catalogs
+iFofInterval    = 1 # how often to output the fof catalogs
+bTauAbs         = 1 # if set to 1, it will use the linking length dTau (below), without trying to recompute everytime the linking length 
+dTau            = 0.2/nGrid # linking length, should be : 0.2/Ngrid
+dVTau           = 0         # not used
+nMinMembers     = 10        # minimum number of particle in a halo to consider
+dEnvironment0   = -1        #3.0 # Mpc/h. Set to -1 if you dont want to use. What these Environment do : Output the average density in shell of radius this value, centered on each halo. To study environment biases etc.. 
+#dEnvironment1
+#### VELOCITY ARE a**2 xdot where x is comoving sor xdot is peculiar comoving
+
+del math
