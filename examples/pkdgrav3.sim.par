@@ -6,10 +6,10 @@ achOutName	= "CDM_100Mpc_2048"
 bMemUnordered	= 1	# iOrder replaced by potential and group id
 bNewKDK         = 1	# No accelerations in the particle, dual tree possible
 bDualTree	    = 1	# Use two trees
-bMemPotential  = 0
-nBucket = 24
+bMemPotential   = 0
+nBucket         = 24
 bMemIntegerPosition = 1
-dExtraStore = 0.02
+dExtraStore     = 0.02
 
 # Initial Condition
 dBoxSize        = 100        # Mpc/h
