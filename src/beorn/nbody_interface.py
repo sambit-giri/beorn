@@ -6,8 +6,7 @@ import numpy as np
 from scipy.interpolate import splev, splrep
 import pandas as pd
 
-class HaloCatalogue_Pkdgrav3:
-
+class ReaderPkdgrav3:
     def __init__(self, box_len, nGrid, 
             Omega_m=0.31, rho_c=2.77536627e11, verbose=True):
         self.box_len = box_len
@@ -48,6 +47,12 @@ class HaloCatalogue_Pkdgrav3:
             float: The speed of light in simulation units.
         """
         return 8677.2079486362706 / dMpcUnit
+    
+class HaloCataloguePkdgrav3(ReaderPkdgrav3):
+
+    def __init__(self, box_len, nGrid, 
+            Omega_m=0.31, rho_c=2.77536627e11, verbose=True):
+        super().__init__(box_len, nGrid, Omega_m, rho_c, verbose)
 
     def read_fof_data(self, filename, z):
         BOX  = self.box_len
@@ -119,6 +124,12 @@ class HaloCatalogue_Pkdgrav3:
         np.savetxt(savefile, str_data)
         if self.verbose:
             print(f'The FoF halo data saved as {savefile}')
+
+class PowerSpectrumPkdgrav3(ReaderPkdgrav3):
+
+    def __init__(self, box_len, nGrid, 
+            Omega_m=0.31, rho_c=2.77536627e11, verbose=True):
+        super().__init__(box_len, nGrid, Omega_m, rho_c, verbose)
 
     def read_pk_data(self, filename, ks=None, window_size=None):
         pk_data = {}
